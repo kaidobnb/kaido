@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with gradient -->
+  <rect width="1200" height="630" fill="url(#background-gradient)" />
+  
+  <!-- Background decorative elements -->
+  <circle cx="200" cy="150" r="300" fill="url(#purple-glow)" opacity="0.1" />
+  <circle cx="1000" cy="500" r="250" fill="url(#blue-glow)" opacity="0.1" />
+  <circle cx="600" cy="300" r="400" fill="url(#indigo-glow)" opacity="0.05" />
+  
+  <!-- Logo -->
+  <g transform="translate(150, 215) scale(0.8)">
+    <!-- Logo background -->
+    <rect width="200" height="200" rx="50" fill="url(#logo-gradient)" />
+    
+    <!-- Letter S -->
+    <path d="M125 69C125 58.5066 116.493 50 106 50H81C70.5066 50 62 58.5066 62 69V75C62 85.4934 70.5066 94 81 94H106C111.523 94 116 98.4772 116 104V119C116 124.523 111.523 129 106 129H81C75.4772 129 71 124.523 71 119V113" 
+          stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Prediction chart line -->
+    <path d="M62 150L81 131L100 144L119 125L138 138" 
+          stroke="#A78BFA" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- AI node points -->
+    <circle cx="62" cy="150" r="6" fill="#A78BFA"/>
+    <circle cx="81" cy="131" r="6" fill="#A78BFA"/>
+    <circle cx="100" cy="144" r="6" fill="#A78BFA"/>
+    <circle cx="119" cy="125" r="6" fill="#A78BFA"/>
+    <circle cx="138" cy="138" r="6" fill="#A78BFA"/>
+  </g>
+  
+  <!-- Text content -->
+  <text x="400" y="250" font-family="'Nunito', sans-serif" font-weight="700" font-size="72" fill="white">SolyMarket.ai</text>
+  <text x="400" y="330" font-family="'Nunito', sans-serif" font-weight="400" font-size="36" fill="#E2E8F0">AI-Powered Prediction Markets</text>
+  <text x="400" y="380" font-family="'Nunito', sans-serif" font-weight="400" font-size="36" fill="#E2E8F0">on Solana</text>
+  
+  <!-- Feature points -->
+  <g transform="translate(400, 430)">
+    <circle cx="12" cy="12" r="6" fill="#A78BFA"/>
+    <text x="30" y="18" font-family="'Nunito', sans-serif" font-weight="400" font-size="24" fill="#CBD5E1">Create and participate in prediction markets</text>
+  </g>
+  
+  <g transform="translate(400, 470)">
+    <circle cx="12" cy="12" r="6" fill="#A78BFA"/>
+    <text x="30" y="18" font-family="'Nunito', sans-serif" font-weight="400" font-size="24" fill="#CBD5E1">AI-driven insights and analysis</text>
+  </g>
+  
+  <g transform="translate(400, 510)">
+    <circle cx="12" cy="12" r="6" fill="#A78BFA"/>
+    <text x="30" y="18" font-family="'Nunito', sans-serif" font-weight="400" font-size="24" fill="#CBD5E1">Fast and low-cost transactions</text>
+  </g>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="background-gradient" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    
+    <radialGradient id="purple-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(200 150) rotate(90) scale(300)">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    
+    <radialGradient id="blue-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1000 500) rotate(90) scale(250)">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#3B82F6" stop-opacity="0"/>
+    </radialGradient>
+    
+    <radialGradient id="indigo-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(600 300) rotate(90) scale(400)">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#6366F1" stop-opacity="0"/>
+    </radialGradient>
+    
+    <linearGradient id="logo-gradient" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#3B82F6"/>
+    </linearGradient>
+  </defs>
+</svg>

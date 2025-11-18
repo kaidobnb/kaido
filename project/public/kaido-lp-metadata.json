@@ -1,0 +1,36 @@
+{
+  "name": "Kaido LP",
+  "symbol": "KAIDO",
+  "decimals": 18,
+  "description": "Kaido LP token for presale participants. This token will be redeemed for the main KAIDO token upon launch.",
+  "image": "https://kaidobnb.xyz/kaido.png",
+  "external_link": "https://kaidobnb.xyz",
+  "contract_address": "0x9c34729D6C5dE59D85C7Edee2A378C6E916044a5",
+  "network": "BSC",
+  "chain_id": 56,
+  "attributes": [
+    {
+      "trait_type": "Token Type",
+      "value": "LP Token"
+    },
+    {
+      "trait_type": "Purpose",
+      "value": "Presale Distribution"
+    },
+    {
+      "trait_type": "Redeemable",
+      "value": "Yes"
+    },
+    {
+      "trait_type": "Network",
+      "value": "BNB Smart Chain"
+    }
+  ],
+  "properties": {
+    "total_supply": "1000000000",
+    "presale_allocation": "400000000",
+    "website": "https://kaidobnb.xyz",
+    "telegram": "https://t.me/kaidobnb",
+    "twitter": "https://twitter.com/kaidobnb"
+  }
+}

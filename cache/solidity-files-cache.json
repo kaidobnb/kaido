@@ -1,0 +1,188 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "/Users/charlpagne/Documents/solymarket/contracts/KaidoLP.sol": {
+      "lastModificationDate": 1762117189279,
+      "contentHash": "e6df1162f6fbccf445a4ce833815f868",
+      "sourceName": "contracts/KaidoLP.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "IERC20",
+        "KaidoLP"
+      ]
+    },
+    "/Users/charlpagne/Documents/solymarket/contracts/KaidoLPToken.sol": {
+      "lastModificationDate": 1762117189278,
+      "contentHash": "393e9e68908f9b7762fe8e987b7d6a4d",
+      "sourceName": "contracts/KaidoLPToken.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "KaidoLPToken"
+      ]
+    },
+    "/Users/charlpagne/Documents/solymarket/contracts/FeeDistributor.sol": {
+      "lastModificationDate": 1763029337572,
+      "contentHash": "f2f26f3343c48ded0c8df180878e73fb",
+      "sourceName": "contracts/FeeDistributor.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "FeeDistributor"
+      ]
+    },
+    "/Users/charlpagne/Documents/solymarket/contracts/LossEdgeVault.sol": {
+      "lastModificationDate": 1763024785767,
+      "contentHash": "cce01ccb724faa36759a4d5e25c0aba1",
+      "sourceName": "contracts/LossEdgeVault.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "LossEdgeVault"
+      ]
+    },
+    "/Users/charlpagne/Documents/solymarket/contracts/PredictionFactory.sol": {
+      "lastModificationDate": 1763029726906,
+      "contentHash": "6b5c2b017e1a3b94f1ba7cc4b8b454a6",
+      "sourceName": "contracts/PredictionFactory.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "IFeeDistributor",
+        "ILossEdgeVault",
+        "PredictionFactory"
+      ]
+    }
+  }
+}

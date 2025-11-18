@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle with gradient -->
+  <defs>
+    <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F3BA2F;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FCD34D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F59E0B;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Main logo circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#faviconGradient)" stroke="#F3BA2F" stroke-width="16"/>
+
+  <!-- Inner geometric pattern representing prediction/analytics -->
+  <g transform="translate(256, 256)">
+    <!-- Central diamond -->
+    <polygon points="0,-96 64,0 0,96 -64,0" fill="#000000" opacity="0.9"/>
+
+    <!-- Prediction arrows -->
+    <path d="M-128,-64 L-48,-64 L-64,-32 M-48,-64 L-64,-96" stroke="#000000" stroke-width="24" stroke-linecap="round" fill="none"/>
+    <path d="M128,64 L48,64 L64,32 M48,64 L64,96" stroke="#000000" stroke-width="24" stroke-linecap="round" fill="none"/>
+
+    <!-- Data points -->
+    <circle cx="-96" cy="24" r="16" fill="#000000"/>
+    <circle cx="96" cy="-24" r="16" fill="#000000"/>
+    <circle cx="0" cy="-144" r="12" fill="#000000"/>
+    <circle cx="0" cy="144" r="12" fill="#000000"/>
+  </g>
+</svg>

@@ -1,0 +1,2135 @@
+import { Request, Response } from 'express';
+import mongoose from 'mongoose';
+import Prediction, { IPrediction } from '../models/Prediction';
+import User from '../models/User';
+import Participation, { IParticipation } from '../models/Participation';
+import Transaction from '../models/Transaction';
+import Referral from '../models/Referral';
+import { IUser } from '../models/User';
+import { generatePredictionAnalysis } from '../services/aiService';
+import { getCurrentPrice, checkPriceTargetReached, determinePriceRange } from '../services/cryptoService';
+import { sendTokensFromClaimWallet, hasClaimWalletSufficientBalance } from '../services/walletService';
+import AdminSettings from '../models/AdminSettings';
+
+// Admin wallet address for collecting fees and handling payouts
+const ADMIN_WALLET_ADDRESS = process.env.ADMIN_WALLET_ADDRESS || 'F5R5YZ3Eq15cMgynUHjVJtRnr1CBBRp2sroEj3c7xGM1';
+
+// Claim wallet address for paying out winnings
+const CLAIM_WALLET_ADDRESS = process.env.CLAIM_WALLET_ADDRESS || '6tDDFa57o4CoaSeCYQvog4NTnLebLbXnQWiGmX64rb2a';
+
+// Fee structure
+const FEES = {
+  CREATION_SOL: 0.10, // 10% fee for SOL
+  CREATION_SOLY: 0.02, // 2% fee for SOLY
+  RESOLUTION_SOL: 0.05, // 5% fee on winning pool for SOL (4% admin, 1% creator)
+  RESOLUTION_SOLY: 0.02, // 2% fee on winning pool for SOLY (1.5% admin, 0.5% creator)
+  CREATOR_SHARE_SOL: 0.2, // 20% of resolution fee goes to creator (1% of total pool)
+  CREATOR_SHARE_SOLY: 0.25 // 25% of resolution fee goes to creator (0.5% of total pool)
+};
+
+// @desc    Create a new prediction
+// @route   POST /api/predictions
+// @access  Private
+export const createPrediction = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as IUser;
+
+    const {
+      title,
+      description,
+      type,
+      tokenType,
+      endDate,
+      duration,
+      choices,
+      resolveDetails,
+      asset,
+      targetPrice,
+      priceRanges,
+      useAI = false, // Optional flag to use AI for generating prediction details
+      transactionHash = '', // Transaction hash from Appkit
+      bypassBalanceCheck = false, // Flag to bypass balance check when transaction is already processed
+      minSolyRequired = 0, // Minimum SOLY tokens required for agent predictions
+      maxParticipants = 0, // Maximum number of participants for agent predictions
+      rewardPoolAmount = 0 // Reward pool amount for agent predictions
+    } = req.body;
+
+    // Log the received endDate and duration for debugging
+    console.log('Prediction creation request:', {
+      endDate,
+      duration,
+      currentServerTime: new Date().toISOString()
+    });
+
+    // Use let instead of const for stakeAmount so we can modify it
+    let stakeAmount = req.body.stakeAmount || 0;
+
+    // Validate required fields
+    if (!type || !endDate || !asset) {
+      return res.status(400).json({ message: 'Please provide all required fields' });
+    }
+
+    // Validate type-specific fields
+    if (type === 'agent') {
+      if (!minSolyRequired || minSolyRequired <= 0) {
+        return res.status(400).json({ message: 'Please provide a valid minimum SOLY requirement' });
+      }
+      if (!maxParticipants || maxParticipants <= 0) {
+        return res.status(400).json({ message: 'Please provide a valid maximum participants limit' });
+      }
+      if (!rewardPoolAmount || rewardPoolAmount <= 0) {
+        return res.status(400).json({ message: 'Please provide a valid reward pool amount' });
+      }
+    } else {
+      if (!tokenType || !stakeAmount) {
+        return res.status(400).json({ message: 'Please provide token type and stake amount' });
+      }
+    }
+
+    // Validate choices based on prediction type
+    if (type === 'binary') {
+      if (!targetPrice) {
+        return res.status(400).json({ message: 'Target price is required for binary predictions' });
+      }
+    } else if (type === 'multiple') {
+      if (!priceRanges || !Array.isArray(priceRanges) || priceRanges.length < 1) {
+        return res.status(400).json({ message: 'At least one price range is required for multiple-choice predictions' });
+      }
+    }
+
+    // Initialize variables
+    let feePercentage = 0;
+    let feeAmount = 0;
+    let actualStakeAmount = 0;
+    let totalAmount = 0;
+    let shouldBypassBalanceCheck = true;
+
+    // For agent predictions, we don't need to calculate fees or check balance
+    if (type === 'agent') {
+      // Keep the token type as specified (SOL or SOLY)
+      // This will be used for rewards
+
+      // No stake amount for agent predictions
+      stakeAmount = 0;
+
+      console.log(`Agent prediction - no fee calculation needed, reward token: ${tokenType}`);
+    } else {
+      // Calculate fee based on token type for regular predictions
+      feePercentage = tokenType === 'SOL' ? FEES.CREATION_SOL : FEES.CREATION_SOLY;
+
+      // The fee is deducted from the stake amount
+      feeAmount = stakeAmount * feePercentage;
+
+      // The actual stake amount that goes into the prediction pool is the original amount minus the fee
+      actualStakeAmount = stakeAmount - feeAmount;
+
+      // Total amount is the original stake amount (fee + actual stake)
+      totalAmount = stakeAmount;
+
+      // Check if we should bypass the balance check
+      shouldBypassBalanceCheck = Boolean(bypassBalanceCheck && transactionHash);
+
+      // Log transaction information for debugging
+      console.log('Transaction info:', {
+        transactionHash,
+        bypassBalanceCheck,
+        shouldBypassBalanceCheck,
+        userBalance: (user.balances as any)[tokenType],
+        requiredAmount: totalAmount
+      });
+
+      // Check if user has enough balance including fee (unless bypassed)
+      if (!shouldBypassBalanceCheck && (user.balances as any)[tokenType] < totalAmount) {
+        return res.status(400).json({
+          message: `Insufficient ${tokenType} balance. You need ${totalAmount} ${tokenType} (including ${feeAmount} ${tokenType} fee)`
+        });
+      }
+    }
+
+    // Generate prediction details using AI if requested
+    let predictionTitle = title;
+    let predictionDescription = description;
+    let predictionResolveDetails = resolveDetails;
+
+    if (useAI) {
+      try {
+        const aiResponse = await generatePredictionAnalysis(
+          asset,
+          type,
+          targetPrice,
+          priceRanges,
+          new Date(endDate).toISOString().split('T')[0]
+        );
+
+        predictionTitle = aiResponse.title || title;
+        predictionDescription = aiResponse.description || description;
+        predictionResolveDetails = aiResponse.resolveDetails || resolveDetails;
+      } catch (aiError) {
+        console.error('Error generating AI prediction details:', aiError);
+        // Continue with user-provided details if AI fails
+      }
+    }
+
+    // Ensure we have all required details
+    if (!predictionTitle || !predictionDescription || !predictionResolveDetails) {
+      return res.status(400).json({ message: 'Please provide title, description, and resolve details' });
+    }
+
+    // Format choices based on prediction type
+    let formattedChoices = [];
+    if (type === 'binary') {
+      formattedChoices = [
+        { id: 'yes', label: 'Yes', price: 0.5, percentage: 50 },
+        { id: 'no', label: 'No', price: 0.5, percentage: 50 }
+      ];
+    } else if (type === 'multiple') {
+      // For multiple-choice predictions, format choices based on price ranges
+      formattedChoices = priceRanges.map((range: string, index: number) => ({
+        id: `range-${index + 1}`,
+        label: range,
+        price: 1 / priceRanges.length,
+        percentage: 100 / priceRanges.length
+      }));
+    } else if (type === 'agent') {
+      // For agent predictions, check if it's binary or multiple-choice
+      if (priceRanges && priceRanges.length > 0) {
+        // Multiple-choice agent prediction
+        formattedChoices = priceRanges.map((range: string, index: number) => ({
+          id: `range-${index + 1}`,
+          label: range,
+          price: 1 / priceRanges.length,
+          percentage: 100 / priceRanges.length
+        }));
+      } else {
+        // Binary agent prediction
+        formattedChoices = [
+          { id: 'yes', label: 'Yes', price: 0.5, percentage: 50 },
+          { id: 'no', label: 'No', price: 0.5, percentage: 50 }
+        ];
+      }
+    }
+
+    // Create prediction with type-specific fields
+    const predictionData: any = {
+      title: predictionTitle,
+      description: predictionDescription,
+      type,
+      tokenType,
+      creator: user._id,
+      endDate,
+      duration: req.body.duration, // Include duration in minutes
+      choices: formattedChoices,
+      resolveDetails: predictionResolveDetails,
+      asset,
+      targetPrice,
+      priceRanges,
+      stakeAmount: actualStakeAmount, // Use the amount after fee deduction
+      volume: type === 'agent' ? 0 : actualStakeAmount, // No volume for agent predictions
+      participants: type === 'agent' ? 0 : 1, // Start with 0 participants for agent predictions
+      adminWallet: ADMIN_WALLET_ADDRESS, // Store admin wallet for payouts
+      fees: {
+        creation: feeAmount,
+        resolution: 0 // Will be calculated when prediction is resolved
+      }
+    };
+
+    // Add agent-specific fields
+    if (type === 'agent') {
+      predictionData.minSolyRequired = minSolyRequired;
+      predictionData.maxParticipants = maxParticipants;
+      predictionData.rewardPoolAmount = rewardPoolAmount;
+    }
+
+    const prediction = await Prediction.create(predictionData);
+
+    // For non-agent predictions, create participation and transaction records
+    if (type !== 'agent') {
+      // Create participation record
+      await Participation.create({
+        user: user._id,
+        prediction: prediction._id,
+        position: type === 'binary' ? 'yes' : 'range-1', // Default position
+        amount: actualStakeAmount, // Use the amount after fee deduction
+        tokenType
+      });
+
+      // Create transaction record for prediction stake
+      await Transaction.create({
+        user: user._id,
+        type: 'prediction',
+        amount: actualStakeAmount, // Use the amount after fee deduction
+        tokenType,
+        prediction: prediction._id,
+        position: type === 'binary' ? 'yes' : 'range-1',
+        status: 'completed',
+        txHash: transactionHash || undefined // Store the transaction hash if provided
+      });
+
+      // Create transaction record for fee
+      await Transaction.create({
+        user: user._id,
+        type: 'fee',
+        amount: feeAmount,
+        tokenType,
+        prediction: prediction._id,
+        description: `${feePercentage * 100}% creation fee`,
+        status: 'completed',
+        txHash: transactionHash || undefined // Store the transaction hash if provided
+      });
+    }
+
+    // Find admin user to credit fees (only for non-agent predictions)
+    if (type !== 'agent' && feeAmount > 0) {
+      const adminUser = await User.findOne({ walletAddress: ADMIN_WALLET_ADDRESS });
+
+      if (adminUser) {
+        // Credit fee to admin wallet
+        await User.findByIdAndUpdate(adminUser._id, {
+          $inc: {
+            [`balances.${tokenType}`]: feeAmount
+          }
+        });
+      } else {
+        console.warn(`Admin user with wallet ${ADMIN_WALLET_ADDRESS} not found. Fees not credited.`);
+      }
+    }
+
+    // Update user stats
+    const updateFields: any = {
+      $inc: {
+        totalPredictions: 1
+      }
+    };
+
+    // For non-agent predictions, update volume and possibly deduct balance
+    if (type !== 'agent') {
+      // Add volume to user stats
+      updateFields.$inc.totalVolume = actualStakeAmount; // Use the amount after fee deduction for volume stats
+
+      // Only deduct from balance if not bypassing the balance check
+      if (!shouldBypassBalanceCheck) {
+        updateFields.$inc[`balances.${tokenType}`] = -totalAmount; // Deduct original stake amount (includes fee)
+      }
+    }
+
+    await User.findByIdAndUpdate(user._id, updateFields);
+
+    res.status(201).json({
+      success: true,
+      prediction,
+      fee: feeAmount,
+      transactionHash: transactionHash || null,
+      balanceBypass: shouldBypassBalanceCheck
+    });
+  } catch (error) {
+    console.error('Error creating prediction:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get all predictions
+// @route   GET /api/predictions
+// @access  Public
+export const getPredictions = async (req: Request, res: Response) => {
+  try {
+    const {
+      type,
+      asset,
+      status,
+      includeResolved = 'false',
+      sort = 'volume',
+      limit = 10,
+      page = 1
+    } = req.query;
+
+    // Build query
+    const query: any = {};
+
+    if (type) query.type = type;
+    if (asset) query.asset = asset;
+
+    // Handle status filtering
+    if (status) {
+      query.status = status;
+    } else if (includeResolved !== 'true') {
+      // By default, only show active predictions unless includeResolved is true
+      query.status = 'active';
+    }
+
+    // Calculate pagination
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Build sort object
+    let sortObj: any = {};
+    if (sort === 'volume') sortObj.volume = -1;
+    else if (sort === 'endDate') sortObj.endDate = 1;
+    else if (sort === 'participants') sortObj.participants = -1;
+    else if (sort === 'createdAt') sortObj.createdAt = -1;
+    else if (sort === 'resolvedAt') sortObj.resolvedAt = -1; // For resolved predictions
+    else sortObj.volume = -1; // Default sort
+
+    // Execute query with pagination
+    const predictions = await Prediction.find(query)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(Number(limit))
+      .populate('creator', 'username avatar');
+
+    // Get total count for pagination
+    const total = await Prediction.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: predictions.length,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit)),
+      predictions
+    });
+  } catch (error) {
+    console.error('Error getting predictions:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get prediction by ID
+// @route   GET /api/predictions/:id
+// @access  Public
+export const getPredictionById = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const includeResolved = req.query.includeResolved === 'true';
+
+    console.log(`[getPredictionById] Fetching prediction ${id}, includeResolved=${includeResolved}`);
+
+    // Check if the ID is a valid MongoDB ObjectId
+    const isValidMongoId = mongoose.Types.ObjectId.isValid(id);
+    console.log(`[getPredictionById] Is valid MongoDB ID: ${isValidMongoId}`);
+
+    // If it's not a valid MongoDB ID, it might be a custom ID format from the AI chat
+    if (!isValidMongoId) {
+      console.log(`[getPredictionById] Non-MongoDB ID format detected: ${id}`);
+
+      // For non-MongoDB IDs, we need to handle them differently
+      // This could be a mock prediction or one created through the AI chat
+      // Return a mock prediction for demonstration purposes
+      return res.status(200).json({
+        success: true,
+        prediction: {
+          _id: id,
+          id: id,
+          title: `BNB to Reach $500 by May 4, 2025?`,
+          description: `A prediction market for BNB price reaching $500 by May 4, 2025.`,
+          type: 'binary',
+          tokenType: 'SOL',
+          creator: {
+            username: 'SolyAdmin',
+            avatar: '/images/default-avatar.png'
+          },
+          createdAt: new Date().toISOString(),
+          endDate: new Date('2025-05-04').toISOString(),
+          volume: 0.2,
+          participants: 1,
+          choices: [
+            { id: 'yes', label: 'Yes', price: 0.5, percentage: 50 },
+            { id: 'no', label: 'No', price: 0.5, percentage: 50 }
+          ],
+          resolveDetails: 'This prediction will be resolved based on market data.',
+          status: 'active',
+          asset: 'BNB',
+          targetPrice: 500,
+          stakeAmount: 0.2
+        }
+      });
+    }
+
+    // For valid MongoDB IDs, proceed with the normal flow
+    // First, try to find the prediction regardless of status to check if it exists at all
+    const predictionExists = await Prediction.exists({ _id: id });
+
+    if (!predictionExists) {
+      console.log(`[getPredictionById] Prediction not found: ${id}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Prediction not found'
+      });
+    }
+
+    // Build query - if includeResolved is true, we'll fetch any prediction regardless of status
+    // Otherwise, we'll only fetch active predictions (default behavior)
+    const query: any = { _id: id };
+    if (!includeResolved) {
+      query.status = 'active';
+    }
+
+    console.log(`[getPredictionById] Query:`, query);
+
+    const prediction = await Prediction.findOne(query)
+      .populate('creator', 'username avatar');
+
+    if (!prediction) {
+      console.log(`[getPredictionById] Prediction exists but is not active: ${id}`);
+      // If we get here, the prediction exists but is not active and includeResolved is false
+      return res.status(404).json({
+        success: false,
+        message: 'Prediction is resolved or cancelled',
+        isResolved: true
+      });
+    }
+
+    console.log(`[getPredictionById] Successfully found prediction: ${id}, status=${prediction.status}`);
+
+    res.status(200).json({
+      success: true,
+      prediction
+    });
+  } catch (error) {
+    console.error('Error getting prediction:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Participate in a prediction
+// @route   POST /api/predictions/:id/participate
+// @access  Private
+export const participateInPrediction = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as IUser;
+    const { position, tokenType, transactionHash, bypassBalanceCheck } = req.body;
+    let amount = req.body.amount || 0;
+    const id = req.params.id;
+
+    // For agent predictions, we don't require an amount
+    if (!position) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a position'
+      });
+    }
+
+    // Check if the ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid prediction ID format'
+      });
+    }
+
+    const prediction = await Prediction.findById(id);
+
+    if (!prediction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prediction not found'
+      });
+    }
+
+    // Check if prediction is still active
+    if (prediction.status !== 'active') {
+      return res.status(400).json({ message: 'This prediction is no longer active' });
+    }
+
+    // Check if end date has passed
+    if (new Date(prediction.endDate) < new Date()) {
+      return res.status(400).json({ message: 'This prediction has expired' });
+    }
+
+    // Handle agent predictions
+    if ((prediction.type as 'binary' | 'multiple' | 'agent') === 'agent') {
+      // Check if user has enough SOLY tokens
+      if (prediction.minSolyRequired && (user.balances.SOLY < prediction.minSolyRequired)) {
+        return res.status(400).json({
+          message: `You need at least ${prediction.minSolyRequired} SOLY tokens to participate in this prediction`
+        });
+      }
+
+      // Check if max participants limit has been reached
+      if (prediction.maxParticipants && prediction.participants >= prediction.maxParticipants) {
+        return res.status(400).json({
+          message: `This prediction has reached its maximum number of participants (${prediction.maxParticipants})`
+        });
+      }
+
+      // For agent predictions, we don't need an amount
+      amount = 0;
+    }
+
+    // Validate position
+    const validPosition = prediction.choices.some(choice => choice.id === position);
+    if (!validPosition) {
+      return res.status(400).json({ message: 'Invalid position' });
+    }
+
+    // For agent predictions, we don't need to check balance
+    let shouldBypassBalanceCheck = (prediction.type as 'binary' | 'multiple' | 'agent') === 'agent';
+
+    // For regular predictions, check if we should bypass the balance check
+    if ((prediction.type as 'binary' | 'multiple' | 'agent') !== 'agent') {
+      shouldBypassBalanceCheck = Boolean(bypassBalanceCheck && transactionHash);
+
+      // Log transaction information for debugging
+      console.log('Participation transaction info:', {
+        transactionHash,
+        bypassBalanceCheck,
+        shouldBypassBalanceCheck,
+        userBalance: (user.balances as any)[prediction.tokenType],
+        requiredAmount: amount
+      });
+
+      // Check if user has enough balance (skip if bypassing)
+      if (!shouldBypassBalanceCheck && (user.balances as any)[prediction.tokenType] < amount) {
+        return res.status(400).json({ message: `Insufficient ${prediction.tokenType} balance` });
+      }
+    }
+
+    // Check if user has participated before
+    const existingParticipations = await Participation.find({
+      user: user._id,
+      prediction: prediction._id
+    });
+
+    // For agent predictions, check if user has already participated at all
+    if ((prediction.type as 'binary' | 'multiple' | 'agent') === 'agent') {
+      if (existingParticipations.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already participated in this agent prediction'
+        });
+      }
+    }
+
+    // Track if this is the user's first participation in this prediction
+    const isFirstParticipation = existingParticipations.length === 0;
+
+    // Create participation record
+    try {
+      await Participation.create({
+        user: user._id,
+        prediction: prediction._id,
+        position,
+        amount,
+        tokenType: prediction.tokenType
+      });
+    } catch (error: any) {
+      // Check if this is a duplicate key error (E11000)
+      if (error.code === 11000 && error.keyPattern &&
+          error.keyPattern.user && error.keyPattern.prediction && error.keyPattern.position) {
+
+        console.log('Duplicate participation detected. This is expected until the unique index is dropped.');
+        console.log('Error details:', error.message);
+
+        // Instead of failing, we'll update the existing participation by adding to its amount
+        // This is a temporary workaround until the unique index is dropped
+        await Participation.findOneAndUpdate(
+          {
+            user: user._id,
+            prediction: prediction._id,
+            position
+          },
+          {
+            $inc: { amount: amount }
+          }
+        );
+
+        console.log('Successfully updated existing participation with additional amount');
+      } else {
+        // If it's not a duplicate key error, rethrow it
+        throw error;
+      }
+    }
+
+    // Create transaction record (with amount 0 for agent predictions)
+    await Transaction.create({
+      user: user._id,
+      type: 'prediction',
+      amount,
+      tokenType: prediction.tokenType,
+      prediction: prediction._id,
+      position,
+      status: 'completed',
+      txHash: transactionHash || undefined, // Store the transaction hash if provided
+      description: (prediction.type as 'binary' | 'multiple' | 'agent') === 'agent' ? 'Agent prediction participation' : undefined
+    });
+
+    // Update prediction - only increment participants count if this is the user's first participation
+    await Prediction.findByIdAndUpdate(prediction._id, {
+      $inc: {
+        volume: amount,
+        participants: isFirstParticipation ? 1 : 0
+      }
+    });
+
+    // Update user stats
+    const updateFields: any = {
+      $inc: {
+        totalPredictions: 1
+      }
+    };
+
+    // For non-agent predictions, update volume and possibly deduct balance
+    if ((prediction.type as 'binary' | 'multiple' | 'agent') !== 'agent') {
+      // Add volume to user stats
+      updateFields.$inc.totalVolume = amount;
+
+      // Only deduct from balance if not bypassing the balance check
+      if (!shouldBypassBalanceCheck) {
+        updateFields.$inc[`balances.${prediction.tokenType}`] = -amount;
+      }
+    }
+
+    await User.findByIdAndUpdate(user._id, updateFields);
+
+    // Recalculate choice percentages
+    const updatedPrediction = await Prediction.findById(prediction._id);
+    const participations = await Participation.find({ prediction: prediction._id });
+
+    // Group participations by position
+    const positionTotals: { [key: string]: number } = {};
+    participations.forEach(p => {
+      if (!positionTotals[p.position]) positionTotals[p.position] = 0;
+      positionTotals[p.position] += p.amount;
+    });
+
+    // Calculate new percentages
+    const totalVolume = updatedPrediction!.volume;
+    const updatedChoices = updatedPrediction!.choices.map(choice => {
+      const positionVolume = positionTotals[choice.id] || 0;
+      const percentage = totalVolume > 0 ? (positionVolume / totalVolume) * 100 : 0;
+      return {
+        ...choice,
+        percentage: Math.round(percentage),
+        price: percentage / 100
+      };
+    });
+
+    // Update prediction choices
+    await Prediction.findByIdAndUpdate(prediction._id, {
+      choices: updatedChoices
+    });
+
+    // Process referral rewards if the user was referred by someone
+    if (user.referredBy) {
+      console.log(`REFERRAL REWARD: User ${user._id} (${user.username || user.walletAddress}) has a referrer: ${user.referredBy}`);
+      console.log(`REFERRAL REWARD: Prediction details: ID=${prediction._id}, type=${prediction.type}, tokenType=${prediction.tokenType}, amount=${amount}`);
+      console.log(`REFERRAL REWARD: Processing referral reward for ${prediction.type} prediction with ${amount} ${prediction.tokenType}`);
+
+      // Check if the referral relationship exists in the Referral collection
+      const existingReferral = await Referral.findOne({
+        referrer: user.referredBy,
+        referred: user._id
+      });
+
+      console.log(`Existing referral record: ${existingReferral ? existingReferral._id : 'None'}`);
+
+      // If no referral record exists, create one
+      let referralRecord = existingReferral;
+      if (!referralRecord) {
+        console.log(`No referral record found. Creating new referral record for referrer ${user.referredBy} and user ${user._id}`);
+        try {
+          referralRecord = await Referral.create({
+            referrer: user.referredBy,
+            referred: user._id,
+            status: 'active',
+            hasPredicted: true, // Set to true since they're making a prediction now
+            rewards: { SOL: 0 }
+          });
+          console.log(`Created new referral record: ${referralRecord._id}`);
+        } catch (err) {
+          console.error('Error creating referral record:', err);
+          // Continue with the process even if we couldn't create the record
+        }
+      } else if (existingReferral) {
+        // Always update the hasPredicted flag to ensure it's set correctly
+        console.log(`Updating hasPredicted flag for referral ${existingReferral._id}`);
+        await Referral.findByIdAndUpdate(existingReferral._id, { hasPredicted: true });
+
+        // Double-check that the update was successful
+        const updatedReferral = await Referral.findById(existingReferral._id);
+        console.log(`Verified hasPredicted flag update: ${updatedReferral?.hasPredicted}`);
+      }
+
+      try {
+        // Get the referrer
+        const referrer = await User.findById(user.referredBy);
+
+        if (referrer) {
+          console.log(`Found referrer: ${referrer._id} (${referrer.username || referrer.walletAddress})`);
+
+          // Calculate referral reward (3% for SOL)
+          // This is separate from the creator reward during resolution
+          const referralRewardPercentage = 0.03; // Fixed at 3% for SOL
+
+          // Make sure amount is a number
+          const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+
+          // Calculate the reward based on prediction type
+          let referralReward = 0;
+
+          if (prediction.type === 'agent') {
+            // For agent predictions, use a fixed minimum reward regardless of amount
+            // since agent predictions have amount=0
+            const agentMinimumReward = 0.01; // 0.01 SOL
+            referralReward = agentMinimumReward;
+            console.log(`Agent prediction detected - using fixed reward: ${referralReward} ${prediction.tokenType}`);
+          } else {
+            // For regular predictions, calculate based on amount
+            referralReward = numericAmount * referralRewardPercentage;
+            console.log(`Regular prediction - calculated referral reward: ${referralReward} ${prediction.tokenType} (${referralRewardPercentage * 100}% of ${numericAmount})`);
+
+            // Ensure the reward is a valid number and greater than zero for regular predictions
+            if (isNaN(referralReward) || referralReward <= 0) {
+              console.error(`Invalid referral reward calculated: ${referralReward} ${prediction.tokenType}`);
+              console.error(`Amount: ${amount}, Percentage: ${referralRewardPercentage}`);
+              // Set a minimum reward to ensure something is created
+              const minimumReward = 0.001; // 0.001 SOL
+              console.log(`Setting minimum reward of ${minimumReward} ${prediction.tokenType}`);
+              referralReward = minimumReward;
+            }
+          }
+
+          // Ensure we have at least 4 decimal places of precision for SOL
+          referralReward = parseFloat(referralReward.toFixed(4));
+          console.log(`Adjusted SOL referral reward to 4 decimal places: ${referralReward}`);
+
+          console.log(`Processing referral reward: ${referralReward} ${prediction.tokenType} for referrer ${referrer._id}`);
+
+          // Instead of directly updating the balance, create a pending reward
+          // that the user can claim later (similar to prediction rewards)
+          console.log(`Creating pending referral reward of ${referralReward} ${prediction.tokenType} for referrer ${referrer._id}`);
+
+          // Check if the user has already participated in this prediction
+          const existingParticipation = await Participation.findOne({
+            user: user._id,
+            prediction: prediction._id
+          });
+
+          console.log(`User has ${existingParticipation ? 'already' : 'not'} participated in this prediction before`);
+
+          // Check if we've already processed a referral reward for this prediction
+          const existingReferralTransaction = await Transaction.findOne({
+            user: referrer._id,
+            type: 'referral',
+            prediction: prediction._id
+          });
+
+          if (existingReferralTransaction) {
+            console.log(`Found existing referral transaction for this prediction: ${existingReferralTransaction._id}, status: ${existingReferralTransaction.status}`);
+            console.log(`Skipping referral reward creation to avoid duplicate rewards`);
+            // Instead of using return, we'll skip the rest of the referral processing
+          } else {
+            // Only proceed with creating a new referral reward if one doesn't already exist
+
+            // Update the referral record with the new reward and mark as having predicted
+            if (referralRecord) {
+              const updatedReferral = await Referral.findByIdAndUpdate(
+                referralRecord._id,
+                {
+                  $inc: { [`rewards.${prediction.tokenType}`]: referralReward },
+                  hasPredicted: true, // Mark that this referred user has made a prediction
+                  status: 'active' // Ensure status is active
+                },
+                { new: true }
+              );
+
+              console.log(`Updated referral record: status: ${updatedReferral?.status}, hasPredicted: ${updatedReferral?.hasPredicted}, rewards: ${JSON.stringify(updatedReferral?.rewards)}`);
+            } else {
+              console.warn(`No referral record found for referrer ${referrer._id} and user ${user._id}`);
+
+              // Create a referral record if one doesn't exist
+              console.log(`Creating new referral record for referrer ${referrer._id} and user ${user._id}`);
+              try {
+                const newReferral = await Referral.create({
+                  referrer: referrer._id,
+                  referred: user._id,
+                  status: 'active',
+                  hasPredicted: true, // Already predicted
+                  rewards: {
+                    SOL: referralReward
+                  }
+                });
+
+                console.log(`Created new referral record: ${newReferral._id}`);
+                referralRecord = newReferral;
+              } catch (err) {
+                console.error('Error creating referral record:', err);
+              }
+            }
+
+            // Create a transaction record for the referral reward with pending status
+            try {
+              // First check if a transaction for this prediction and referrer already exists
+              const existingTransaction = await Transaction.findOne({
+                user: referrer._id,
+                type: 'referral',
+                prediction: prediction._id
+              });
+
+              // Variable to hold the transaction reference
+              let referralTransaction;
+
+              if (existingTransaction) {
+                console.log(`REFERRAL REWARD: Transaction already exists for this prediction and referrer: ${existingTransaction._id}`);
+                console.log(`REFERRAL REWARD: Existing transaction details: ${JSON.stringify({
+                  id: existingTransaction._id,
+                  user: existingTransaction.user,
+                  amount: existingTransaction.amount,
+                  tokenType: existingTransaction.tokenType,
+                  status: existingTransaction.status,
+                  createdAt: existingTransaction.createdAt
+                })}`);
+
+                // Use the existing transaction
+                referralTransaction = existingTransaction;
+              } else {
+                console.log(`REFERRAL REWARD: Creating new transaction record with amount=${referralReward} ${prediction.tokenType}`);
+
+                // Create a new transaction
+                const newTransaction = await Transaction.create({
+                  user: referrer._id,
+                  type: 'referral',
+                  amount: referralReward,
+                  tokenType: prediction.tokenType,
+                  prediction: prediction._id,
+                  status: 'pending', // Mark as pending instead of completed
+                  description: `Referral reward from ${user.username || 'user'}'s prediction participation - Claimable`
+                });
+
+                console.log(`REFERRAL REWARD: Created pending referral transaction: ${newTransaction._id}`);
+                console.log(`REFERRAL REWARD: Reward of ${referralReward} ${prediction.tokenType} pending for referrer ${referrer._id}`);
+                console.log(`REFERRAL REWARD: Transaction details: ${JSON.stringify({
+                  id: newTransaction._id,
+                  user: referrer._id,
+                  amount: referralReward,
+                  tokenType: prediction.tokenType,
+                  status: newTransaction.status
+                })}`);
+
+                // Use the transaction we just created
+                referralTransaction = newTransaction;
+
+                // Log successful transaction creation
+                console.log(`Referral transaction created successfully: ${referralTransaction._id}, amount: ${referralTransaction.amount} ${referralTransaction.tokenType}`);
+              }
+
+              // At this point, referralTransaction should be defined
+              if (!referralTransaction) {
+                console.error('Failed to create or verify referral transaction');
+                return; // Skip the rest of the processing
+              }
+
+              // Create a direct notification in the User document
+              const userNotification = {
+                userId: referrer._id,
+                type: 'referral_bonus',
+                title: 'New Referral Reward!',
+                message: `You earned ${prediction.tokenType === 'SOL' ? referralReward.toFixed(4) : referralReward.toFixed(2)} ${prediction.tokenType} from ${user.username || 'a user'}'s prediction participation.`,
+                read: false,
+                timestamp: new Date(),
+                predictionId: prediction._id,
+                data: {
+                  amount: referralReward,
+                  tokenType: prediction.tokenType,
+                  transactionId: referralTransaction._id,
+                  referredUser: user.username || 'a user',
+                  claimable: true
+                }
+              };
+
+              console.log(`Creating direct notification in User document: ${JSON.stringify(userNotification)}`);
+
+              try {
+                // First check if a notification for this transaction already exists
+                const existingNotification = await User.findOne({
+                  _id: referrer._id,
+                  'notifications.data.transactionId': referralTransaction._id
+                });
+
+                if (existingNotification) {
+                  console.log(`Notification for transaction ${referralTransaction._id} already exists for user ${referrer._id}, skipping notification creation`);
+                } else {
+                  console.log(`No existing notification found for transaction ${referralTransaction._id}, creating new notification`);
+
+                  // Use the more reliable updateOne method to add the notification
+                  const updateResult = await User.updateOne(
+                    { _id: referrer._id },
+                    {
+                      $push: {
+                        notifications: {
+                          userId: referrer._id,
+                          type: 'referral_bonus',
+                          title: 'New Referral Reward!',
+                          message: `You earned ${prediction.tokenType === 'SOL' ? referralReward.toFixed(4) : referralReward.toFixed(2)} ${prediction.tokenType} from ${user.username || 'a user'}'s prediction participation.`,
+                          read: false,
+                          timestamp: new Date(),
+                          predictionId: prediction._id,
+                          data: {
+                            amount: referralReward,
+                            tokenType: prediction.tokenType,
+                            transactionId: referralTransaction._id,
+                            referredUser: user.username || 'a user',
+                            claimable: true
+                          }
+                        }
+                      }
+                    }
+                  );
+
+                  if (updateResult.modifiedCount > 0) {
+                    console.log(`Successfully added notification to user ${referrer._id}`);
+                  } else {
+                    console.error(`Failed to add notification to user ${referrer._id}. Update result:`, updateResult);
+                  }
+
+                  // Log success and don't worry about verification
+                  // MongoDB will eventually be consistent
+                  console.log(`Notification added to user ${referrer._id} for transaction ${referralTransaction._id}`);
+                }
+              } catch (notificationError) {
+                console.error('Error handling notification for referral reward:', notificationError);
+              }
+            } catch (transactionError) {
+              console.error('Error creating referral transaction:', transactionError);
+            }
+          } else {
+            console.warn(`Referrer ${user.referredBy} not found for user ${user._id}`);
+          }
+        } catch (referralError) {
+          // Log the error but don't fail the whole transaction
+          console.error('Error processing referral reward:', referralError);
+
+          // Create a system notification for the user about the referral processing issue
+          try {
+            await User.updateOne(
+              { _id: user._id },
+              {
+                $push: {
+                  notifications: {
+                    userId: user._id,
+                    type: 'system',
+                    title: 'Referral Processing Issue',
+                    message: 'There was an issue processing your referral reward. Our team has been notified.',
+                    read: false,
+                    timestamp: new Date()
+                  }
+                }
+              }
+            );
+            console.log(`Added system notification to user ${user._id} about referral processing issue`);
+          } catch (notificationError) {
+            console.error('Error creating notification for referral error:', notificationError);
+          }
+        }
+      } else {
+        console.log(`User ${user._id} (${user.username || user.walletAddress}) does not have a referrer`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Successfully participated in prediction',
+      transactionHash: transactionHash || null,
+      balanceBypass: shouldBypassBalanceCheck
+    });
+  } catch (error) {
+    console.error('Error participating in prediction:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Resolve a prediction
+// @route   POST /api/predictions/:id/resolve
+// @access  Private (Admin only)
+export const resolvePrediction = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as IUser & { _id: mongoose.Types.ObjectId };
+    const { resolvedChoice, useAutoResolve = false } = req.body;
+    const id = req.params.id;
+
+    // Check if user is admin (has the admin wallet address) or if it's the system/API
+    const isAdmin = user.walletAddress === ADMIN_WALLET_ADDRESS;
+    const isSystemApi = String(user._id) === 'system';
+
+    if (!isAdmin && !isSystemApi) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admin or system API can resolve predictions'
+      });
+    }
+
+    // Check if the ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid prediction ID format'
+      });
+    }
+
+    const prediction = await Prediction.findById(id);
+
+    if (!prediction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prediction not found'
+      });
+    }
+
+    // Check if prediction is already resolved
+    if (prediction.status !== 'active') {
+      return res.status(400).json({ message: 'This prediction is already resolved or cancelled' });
+    }
+
+    let finalResolvedChoice = resolvedChoice;
+
+    // Auto-resolve based on crypto price data if requested
+    if (useAutoResolve) {
+      try {
+        // Declare matchingRange variable for use in multiple-choice predictions
+        let matchingRange: string | null = null;
+
+        if (prediction.type === 'binary') {
+          // For binary predictions, check if target price was reached
+          const targetReached = await checkPriceTargetReached(
+            prediction.asset,
+            prediction.targetPrice || 0, // Provide default value to avoid undefined
+            new Date(prediction.createdAt),
+            new Date(prediction.endDate)
+          );
+          finalResolvedChoice = targetReached ? 'yes' : 'no';
+        } else if (prediction.type === 'multiple' && prediction.priceRanges) {
+          // For multiple-choice predictions, determine which price range the asset falls into
+          matchingRange = await determinePriceRange(
+            prediction.asset,
+            prediction.priceRanges,
+            new Date(prediction.endDate)
+          );
+        } else if ((prediction.type as 'binary' | 'multiple' | 'agent') === 'agent') {
+          // For agent predictions, we can't auto-resolve
+          return res.status(400).json({
+            message: 'Auto-resolution is not supported for agent predictions. Please provide a manual resolved choice.'
+          });
+        }
+
+        if (prediction.type === 'multiple') {
+          // For multiple-choice predictions, we need to have a matchingRange from the previous code
+          if (!matchingRange) {
+            return res.status(400).json({ message: 'Could not determine price range for auto-resolution' });
+          }
+
+          // Find the choice ID that corresponds to this range
+          const matchingChoice = prediction.choices.find(c => c.label === matchingRange);
+          if (matchingChoice) {
+            finalResolvedChoice = matchingChoice.id;
+          } else {
+            return res.status(400).json({ message: 'Could not determine matching choice for auto-resolution' });
+          }
+        }
+      } catch (autoResolveError) {
+        console.error('Error auto-resolving prediction:', autoResolveError);
+        return res.status(400).json({
+          message: 'Error auto-resolving prediction. Please provide a manual resolved choice.'
+        });
+      }
+    }
+
+    // Ensure we have a resolved choice
+    if (!finalResolvedChoice) {
+      return res.status(400).json({ message: 'Please provide the resolved choice' });
+    }
+
+    // Validate resolved choice
+    const validChoice = prediction.choices.some(choice => choice.id === finalResolvedChoice);
+    if (!validChoice) {
+      return res.status(400).json({ message: 'Invalid resolved choice' });
+    }
+
+    // Find all participations for this prediction
+    const participations = await Participation.find({ prediction: prediction._id });
+
+    // Handle edge case: No participants
+    if (participations.length === 0) {
+      return res.status(400).json({ message: 'No participants in this prediction' });
+    }
+
+    // Check if this is an agent prediction
+    const isAgentPrediction = (prediction.type as 'binary' | 'multiple' | 'agent') === 'agent';
+
+    // For agent predictions, we'll distribute a fixed reward to winners
+    // For regular predictions, we'll distribute the pool based on stake amounts
+    const totalPool = isAgentPrediction ? 0 : prediction.volume;
+
+    // Group participations by position
+    const positionTotals: { [key: string]: number } = {};
+    const positionParticipations: { [key: string]: IParticipation[] } = {};
+
+    participations.forEach(p => {
+      if (!positionTotals[p.position]) {
+        positionTotals[p.position] = 0;
+        positionParticipations[p.position] = [];
+      }
+      positionTotals[p.position] += p.amount;
+      positionParticipations[p.position].push(p);
+    });
+
+    // Calculate total volume for winning position
+    const winningParticipations = positionParticipations[finalResolvedChoice] || [];
+    const winningVolume = positionTotals[finalResolvedChoice] || 0;
+
+    // Handle edge case: No winners
+    if (winningVolume === 0 && !isAgentPrediction) {
+      // If no one chose the winning option, return all stakes to participants
+      console.log('No participants chose the winning option. Returning all stakes.');
+
+      for (const participation of participations) {
+        // Update participation status to refunded
+        await Participation.findByIdAndUpdate(participation._id, {
+          status: 'refunded',
+          reward: participation.amount,
+          claimable: true
+        });
+
+        // Create transaction record for refund
+        await Transaction.create({
+          user: participation.user,
+          type: 'refund',
+          amount: participation.amount,
+          tokenType: prediction.tokenType,
+          prediction: prediction._id,
+          position: participation.position,
+          status: 'pending',
+          description: 'Prediction stake refunded - no winners'
+        });
+      }
+
+      // Update prediction status
+      await Prediction.findByIdAndUpdate(prediction._id, {
+        status: 'resolved',
+        resolvedChoice: finalResolvedChoice,
+        resolvedAt: new Date(),
+        'fees.resolution': 0 // No fees when refunding
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Prediction resolved with no winners. All stakes refunded.',
+        resolvedChoice: finalResolvedChoice
+      });
+    }
+
+    // For agent predictions with no winners, just mark as resolved
+    if (winningVolume === 0 && isAgentPrediction) {
+      console.log('No participants chose the winning option for agent prediction.');
+
+      // Update losing participations
+      for (const participation of participations) {
+        await Participation.findByIdAndUpdate(participation._id, { status: 'lost' });
+      }
+
+      // Update prediction status
+      await Prediction.findByIdAndUpdate(prediction._id, {
+        status: 'resolved',
+        resolvedChoice: finalResolvedChoice,
+        resolvedAt: new Date(),
+        'fees.resolution': 0
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Agent prediction resolved with no winners.',
+        resolvedChoice: finalResolvedChoice
+      });
+    }
+
+    // Initialize variables
+    let platformFee = 0;
+    let creatorFee = 0;
+    let adminFee = 0;
+    let remainingPool = 0;
+
+    // For regular predictions, calculate fees
+    if (!isAgentPrediction) {
+      // Determine platform fee based on token type
+      const platformFeePercentage = prediction.tokenType === 'SOL' ? FEES.RESOLUTION_SOL : FEES.RESOLUTION_SOLY;
+      platformFee = totalPool * platformFeePercentage;
+
+      // Calculate creator's share of the fee
+      const creatorSharePercentage = prediction.tokenType === 'SOL' ? FEES.CREATOR_SHARE_SOL : FEES.CREATOR_SHARE_SOLY;
+      creatorFee = platformFee * creatorSharePercentage;
+
+      // Calculate admin's share of the fee
+      adminFee = platformFee - creatorFee;
+
+      // Calculate remaining pool after platform fee
+      remainingPool = totalPool - platformFee;
+    }
+
+    // Update prediction status and fee information
+    await Prediction.findByIdAndUpdate(prediction._id, {
+      status: 'resolved',
+      resolvedChoice: finalResolvedChoice,
+      'fees.resolution': platformFee,
+      resolvedAt: new Date(),
+      resolvedBy: String(user._id) === 'system' ? 'api' : 'admin' // Mark as resolved by api or admin
+    });
+
+    // For regular predictions, distribute fees
+    if (!isAgentPrediction && platformFee > 0) {
+      // Credit admin's share of the fee
+      const adminUser = await User.findOne({ walletAddress: ADMIN_WALLET_ADDRESS });
+      if (adminUser) {
+        await User.findByIdAndUpdate(adminUser._id, {
+          $inc: {
+            [`balances.${prediction.tokenType}`]: adminFee
+          }
+        });
+
+        // Create transaction record for admin's fee
+        await Transaction.create({
+          user: adminUser._id,
+          type: 'fee',
+          amount: adminFee,
+          tokenType: prediction.tokenType,
+          prediction: prediction._id,
+          description: `Admin share of platform fee`,
+          status: 'completed'
+        });
+      } else {
+        console.warn(`Admin user with wallet ${ADMIN_WALLET_ADDRESS} not found. Admin fees not credited.`);
+      }
+
+      // Credit creator's share of the fee
+      const creator = await User.findById(prediction.creator);
+      if (creator) {
+        await User.findByIdAndUpdate(creator._id, {
+          $inc: {
+            [`balances.${prediction.tokenType}`]: creatorFee
+          }
+        });
+
+        // Create transaction record for creator's fee
+        await Transaction.create({
+          user: creator._id,
+          type: 'fee',
+          amount: creatorFee,
+          tokenType: prediction.tokenType,
+          prediction: prediction._id,
+          description: `Creator share of platform fee`,
+          status: 'completed'
+        });
+
+        console.log(`Credited ${creatorFee} ${prediction.tokenType} to prediction creator ${creator._id}`);
+      } else {
+        console.warn(`Creator user with ID ${prediction.creator} not found. Creator fees not credited.`);
+
+        // If creator not found, add their share to admin
+        if (adminUser) {
+          await User.findByIdAndUpdate(adminUser._id, {
+            $inc: {
+              [`balances.${prediction.tokenType}`]: creatorFee
+            }
+          });
+
+          console.log(`Creator not found, credited their share to admin: ${creatorFee} ${prediction.tokenType}`);
+        }
+      }
+    }
+
+    // Process rewards for winning participants
+    console.log(`Processing rewards for ${winningParticipations.length} winners`);
+
+    // Set minimum payout threshold (0.001 tokens)
+    const MIN_PAYOUT = 0.001;
+
+    // Track total rewards distributed for verification
+    let totalRewardsDistributed = 0;
+
+    // For agent predictions, we'll distribute the reward pool among winners
+    if (isAgentPrediction) {
+      // Get the reward pool amount from the prediction
+      const rewardPoolAmount = prediction.rewardPoolAmount || 0;
+      const rewardTokenType = prediction.tokenType as 'SOL' | 'SOLY'; // Use the token type specified when creating the prediction
+
+      // Calculate reward per winner (divide pool equally among winners)
+      const rewardPerWinner = winningParticipations.length > 0
+        ? rewardPoolAmount / winningParticipations.length
+        : 0;
+
+      console.log(`Agent prediction - reward pool: ${rewardPoolAmount} ${rewardTokenType}, winners: ${winningParticipations.length}, reward per winner: ${rewardPerWinner}`);
+
+      // Find admin user to deduct rewards from
+      const adminUser = await User.findOne({ walletAddress: ADMIN_WALLET_ADDRESS });
+      if (!adminUser) {
+        return res.status(500).json({ message: 'Admin user not found for reward distribution' });
+      }
+
+      // Check if admin has enough balance of the reward token
+      const totalRewardNeeded = rewardPoolAmount;
+      if ((adminUser.balances as any)[rewardTokenType] < totalRewardNeeded) {
+        return res.status(400).json({
+          message: `Admin has insufficient ${rewardTokenType} balance for rewards. Needed: ${totalRewardNeeded} ${rewardTokenType}`
+        });
+      }
+
+      // Process each winning participant
+      for (const participation of winningParticipations) {
+        // Update participation status
+        await Participation.findByIdAndUpdate(participation._id, {
+          status: 'won',
+          reward: rewardPerWinner,
+          claimable: true
+        });
+
+        // Create transaction record for win
+        await Transaction.create({
+          user: participation.user,
+          type: 'win',
+          amount: rewardPerWinner,
+          tokenType: rewardTokenType, // Use the token type specified for the prediction
+          prediction: prediction._id,
+          position: participation.position,
+          status: 'pending', // Will be completed when claimed
+          description: `Agent prediction win - claimable (${rewardTokenType})`
+        });
+
+        // Update user stats
+        await User.findByIdAndUpdate(participation.user, {
+          $inc: {
+            wonPredictions: 1,
+            reputation: 10 // Award reputation points for winning
+          }
+        });
+
+        totalRewardsDistributed += rewardPerWinner;
+      }
+
+      // Deduct total rewards from admin balance
+      await User.findByIdAndUpdate(adminUser._id, {
+        $inc: {
+          [`balances.${rewardTokenType}`]: -totalRewardsDistributed
+        }
+      });
+
+      console.log(`Total ${rewardTokenType} rewards for agent prediction: ${totalRewardsDistributed}`);
+    } else {
+      // Regular prediction reward distribution
+      console.log(`Regular prediction - Total pool: ${totalPool}, Platform fee: ${platformFee}, Remaining pool: ${remainingPool}`);
+      console.log(`Winning volume: ${winningVolume}`);
+
+      for (const participation of winningParticipations) {
+        // Calculate proportional reward based on stake
+        const proportionalStake = participation.amount / winningVolume;
+        const reward = remainingPool * proportionalStake;
+
+        // Skip very small rewards
+        if (reward < MIN_PAYOUT) {
+          console.log(`Skipping small reward of ${reward} ${prediction.tokenType} for user ${participation.user}`);
+          continue;
+        }
+
+        totalRewardsDistributed += reward;
+
+        // Log reward calculation for debugging
+        console.log(`User ${participation.user} staked ${participation.amount} (${(proportionalStake * 100).toFixed(2)}% of winning pool)`);
+        console.log(`Reward: ${reward} ${prediction.tokenType}`);
+
+        // Update participation status
+        await Participation.findByIdAndUpdate(participation._id, {
+          status: 'won',
+          reward,
+          claimable: true
+        });
+
+        // Create transaction record for win (but don't credit balance yet - users need to claim)
+        await Transaction.create({
+          user: participation.user,
+          type: 'win',
+          amount: reward,
+          tokenType: prediction.tokenType,
+          prediction: prediction._id,
+          position: participation.position,
+          status: 'pending', // Will be completed when claimed
+          description: 'Prediction win - claimable'
+        });
+
+        // Update user stats
+        await User.findByIdAndUpdate(participation.user, {
+          $inc: {
+            wonPredictions: 1,
+            reputation: 10 // Award reputation points for winning
+          }
+        });
+      }
+
+      console.log(`Total rewards distributed: ${totalRewardsDistributed} ${prediction.tokenType}`);
+
+      // Handle any dust (tiny amounts left due to rounding)
+      const dust = remainingPool - totalRewardsDistributed;
+      if (dust > 0.0001) {
+        console.log(`Dust amount of ${dust} ${prediction.tokenType} credited to admin`);
+        const adminUser = await User.findOne({ walletAddress: ADMIN_WALLET_ADDRESS });
+        if (adminUser) {
+          await User.findByIdAndUpdate(adminUser._id, {
+            $inc: {
+              [`balances.${prediction.tokenType}`]: dust
+            }
+          });
+        }
+      }
+    }
+
+    // Update losing participations
+    const losingParticipations = participations.filter(p => p.position !== finalResolvedChoice);
+    for (const participation of losingParticipations) {
+      await Participation.findByIdAndUpdate(participation._id, { status: 'lost' });
+    }
+
+    // Update all users' win rates
+    for (const participation of participations) {
+      const user = await User.findById(participation.user);
+      if (user) {
+        const winRate = user.wonPredictions / user.totalPredictions;
+        await User.findByIdAndUpdate(user._id, { winRate });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Prediction resolved successfully',
+      resolvedChoice: finalResolvedChoice,
+      stats: {
+        totalPool,
+        platformFee,
+        remainingPool,
+        totalWinners: winningParticipations.length,
+        totalRewardsDistributed,
+        winningVolume,
+        dust: remainingPool - totalRewardsDistributed
+      }
+    });
+  } catch (error) {
+    console.error('Error resolving prediction:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get user predictions
+// @route   GET /api/predictions/user
+// @access  Private
+export const getUserPredictions = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as IUser;
+    const { status, limit = 10, page = 1 } = req.query;
+
+    // Find all participations for this user
+    const query: any = { user: user._id };
+    if (status) query.status = status;
+
+    // Calculate pagination
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Get participations with populated predictions
+    const participations = await Participation.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit))
+      .populate({
+        path: 'prediction',
+        populate: {
+          path: 'creator',
+          select: 'username avatar'
+        }
+      });
+
+    // Get total count for pagination
+    const total = await Participation.countDocuments(query);
+
+    // Format response
+    const userPredictions = participations.map(p => ({
+      participation: {
+        id: p._id,
+        position: p.position,
+        amount: p.amount,
+        status: p.status,
+        reward: p.reward || 0,
+        claimable: p.claimable || false,
+        createdAt: p.createdAt
+      },
+      prediction: p.prediction
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: userPredictions.length,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit)),
+      predictions: userPredictions
+    });
+  } catch (error) {
+    console.error('Error getting user predictions:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Claim prediction winnings
+// @route   POST /api/predictions/claim/:id
+// @access  Private
+export const claimWinnings = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as IUser & { _id: mongoose.Types.ObjectId };
+    const participationId = req.params.id;
+
+    // Find the participation
+    const participation = await Participation.findById(participationId)
+      .populate<{ prediction: IPrediction }>('prediction');
+
+    if (!participation) {
+      return res.status(404).json({ message: 'Participation not found' });
+    }
+
+    // Check if this participation belongs to the user
+    if (participation.user.toString() !== user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to claim these winnings' });
+    }
+
+    // Check if the participation is claimable
+    if (!participation.claimable) {
+      return res.status(400).json({ message: 'These winnings are not claimable' });
+    }
+
+    // Check if the participation has already been claimed
+    if (participation.claimed) {
+      return res.status(400).json({ message: 'These winnings have already been claimed' });
+    }
+
+    // Get the prediction from the populated field
+    const prediction = participation.prediction as IPrediction;
+
+    const reward = participation.reward || 0;
+
+    // Mark participation as claimed but pending admin approval
+    await Participation.findByIdAndUpdate(participationId, {
+      claimed: true,
+      claimable: false,
+      claimedAt: new Date(),
+      adminApproved: false // Requires admin approval
+    });
+
+    // Update transaction status
+    await Transaction.updateOne(
+      {
+        user: user._id,
+        prediction: prediction._id,
+        position: participation.position,
+        type: 'win',
+        status: 'pending'
+      },
+      {
+        status: 'processing', // Changed from 'completed' to 'processing'
+        description: 'Prediction win - claimed, awaiting admin approval'
+      }
+    );
+
+    // Create a new transaction for the on-chain transfer (pending admin approval)
+    await Transaction.create({
+      user: user._id,
+      type: 'withdrawal',
+      amount: reward,
+      tokenType: prediction.tokenType,
+      prediction: prediction._id,
+      description: 'Prediction winnings withdrawal to wallet (pending approval)',
+      status: 'pending',
+      toWallet: user.walletAddress,
+      fromWallet: CLAIM_WALLET_ADDRESS, // Use the claim wallet for payouts
+      adminApproved: false // Requires admin approval
+    });
+
+    // Check if auto-approval is enabled
+    const adminSettings = await getAdminSettings();
+    const autoApproveEnabled = adminSettings?.autoApproveClaims || false;
+
+    if (autoApproveEnabled) {
+      // Auto-approve the claim
+      await approveClaimTransaction(participationId, user._id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Winnings claimed and automatically approved',
+        amount: reward,
+        tokenType: prediction.tokenType,
+        status: 'approved'
+      });
+    } else {
+      // Notify admin about pending approval (implementation depends on your notification system)
+      // This could be an email, a dashboard notification, etc.
+
+      res.status(200).json({
+        success: true,
+        message: 'Winnings claim submitted and pending admin approval',
+        amount: reward,
+        tokenType: prediction.tokenType,
+        status: 'pending'
+      });
+    }
+  } catch (error) {
+    console.error('Error claiming winnings:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Helper function to get admin settings
+const getAdminSettings = async () => {
+  try {
+    // Find or create admin settings document
+    let settings = await mongoose.model('AdminSettings').findOne({});
+
+    if (!settings) {
+      settings = await mongoose.model('AdminSettings').create({
+        autoApproveClaims: false
+      });
+    }
+
+    return settings;
+  } catch (error) {
+    console.error('Error getting admin settings:', error);
+    return { autoApproveClaims: false }; // Default to false if error
+  }
+};
+
+// Helper function to approve a claim transaction
+const approveClaimTransaction = async (participationId: string, userId: mongoose.Types.ObjectId) => {
+  try {
+    // Find the participation
+    const participation = await Participation.findById(participationId)
+      .populate<{ prediction: IPrediction }>('prediction');
+
+    if (!participation) {
+      throw new Error('Participation not found');
+    }
+
+    // Get the prediction from the populated field
+    const prediction = participation.prediction as IPrediction;
+
+    // Get reward amount
+    const reward = participation.reward || 0;
+
+    // Get user details for wallet address
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Check if user has a wallet address
+    if (!user.walletAddress) {
+      throw new Error('User does not have a wallet address');
+    }
+
+    // Check if claim wallet has sufficient balance
+    const hasSufficientBalance = await hasClaimWalletSufficientBalance(reward);
+    if (!hasSufficientBalance) {
+      throw new Error(`Claim wallet has insufficient balance to pay out ${reward} ${prediction.tokenType}`);
+    }
+
+    // Mark participation as admin approved
+    await Participation.findByIdAndUpdate(participationId, {
+      adminApproved: true
+    });
+
+    // Update transaction status
+    await Transaction.updateOne(
+      {
+        user: userId,
+        prediction: prediction._id,
+        position: participation.position,
+        type: 'win',
+        status: 'processing'
+      },
+      {
+        status: 'completed',
+        description: 'Prediction win - claimed and approved'
+      }
+    );
+
+    // Update withdrawal transaction
+    const withdrawalTx = await Transaction.findOneAndUpdate(
+      {
+        user: userId,
+        prediction: prediction._id,
+        type: 'withdrawal',
+        status: 'pending',
+        adminApproved: false
+      },
+      {
+        status: 'processing', // Set to processing while we send the on-chain transaction
+        description: 'Prediction winnings withdrawal to wallet (processing)',
+        adminApproved: true
+      },
+      { new: true }
+    );
+
+    if (!withdrawalTx) {
+      throw new Error('Withdrawal transaction not found');
+    }
+
+    // Send tokens to user's wallet
+    try {
+      console.log(`Sending ${reward} ${prediction.tokenType} to ${user.walletAddress}`);
+
+      // Send tokens from claim wallet to user's wallet
+      const txSignature = await sendTokensFromClaimWallet(
+        user.walletAddress,
+        reward,
+        prediction.tokenType as 'SOL' | 'SOLY'
+      );
+
+      // Update transaction with signature
+      await Transaction.findByIdAndUpdate(withdrawalTx._id, {
+        status: 'completed',
+        description: `Prediction winnings withdrawal to wallet (completed)`,
+        txHash: txSignature
+      });
+
+      console.log(`Successfully sent ${reward} ${prediction.tokenType} to ${user.walletAddress}`);
+      console.log(`Transaction signature: ${txSignature}`);
+    } catch (error) {
+      // Type assertion to handle the error properly
+      const sendError: Error = error instanceof Error ? error : new Error(String(error));
+      console.error('Error sending tokens to user wallet:', sendError);
+
+      // Update transaction to failed status
+      await Transaction.findByIdAndUpdate(withdrawalTx._id, {
+        status: 'failed',
+        description: `Failed to send tokens: ${sendError.message}`
+      });
+
+      // Still update user balance in the app
+      await User.findByIdAndUpdate(userId, {
+        $inc: {
+          [`balances.${prediction.tokenType}`]: reward,
+          claimedWinnings: reward
+        }
+      });
+
+      // Return true because we still want to mark the claim as approved in the app
+      // The admin will need to manually send the tokens
+      return true;
+    }
+
+    // Update user balance
+    await User.findByIdAndUpdate(userId, {
+      $inc: {
+        [`balances.${prediction.tokenType}`]: reward,
+        claimedWinnings: reward
+      }
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error approving claim transaction:', error);
+    return false;
+  }
+};
+
+// @desc    Get claimable winnings for user
+// @route   GET /api/predictions/claimable
+// @access  Private
+export const getClaimableWinnings = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as IUser & { _id: mongoose.Types.ObjectId };
+
+    // Find all claimable participations for this user
+    const claimableParticipations = await Participation.find({
+      user: user._id,
+      claimable: true,
+      claimed: { $ne: true }
+    }).populate<{ prediction: IPrediction }>('prediction');
+
+    // Calculate total claimable amount by token type
+    const claimableTotals: { [key: string]: number } = {};
+
+    claimableParticipations.forEach(p => {
+      const prediction = p.prediction as IPrediction;
+      const tokenType = prediction.tokenType;
+      const reward = p.reward || 0;
+
+      if (!claimableTotals[tokenType]) {
+        claimableTotals[tokenType] = 0;
+      }
+
+      claimableTotals[tokenType] += reward;
+    });
+
+    // Format response
+    const claimableWinnings = claimableParticipations.map(p => {
+      const prediction = p.prediction as IPrediction;
+
+      return {
+        id: p._id,
+        prediction: {
+          id: prediction._id,
+          title: prediction.title,
+          asset: prediction.asset,
+          resolvedChoice: prediction.resolvedChoice
+        },
+        position: p.position,
+        amount: p.amount,
+        reward: p.reward || 0,
+        tokenType: prediction.tokenType
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: claimableWinnings.length,
+      totals: claimableTotals,
+      winnings: claimableWinnings
+    });
+  } catch (error) {
+    console.error('Error getting claimable winnings:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get votes (participations) for a prediction
+// @route   GET /api/predictions/:id/votes
+// @access  Public
+export const getPredictionVotes = async (req: Request, res: Response) => {
+  try {
+    const predictionId = req.params.id;
+
+    // Check if the ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(predictionId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid prediction ID format'
+      });
+    }
+
+    // Find the prediction first to make sure it exists
+    const prediction = await Prediction.findById(predictionId);
+
+    if (!prediction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prediction not found'
+      });
+    }
+
+    // Find all participations for this prediction, sorted by most recent first
+    const participations = await Participation.find({ prediction: predictionId })
+      .sort({ createdAt: -1 })
+      .limit(20) // Limit to 20 most recent votes
+      .populate('user', 'username avatar');
+
+    // Log participations with their createdAt fields for debugging
+    console.log('Recent participations with createdAt fields:');
+    participations.forEach((p, index) => {
+      console.log(`Participation ${index + 1}:`, {
+        id: p._id,
+        position: p.position,
+        amount: p.amount,
+        createdAt: p.createdAt,
+        createdAtISO: p.createdAt ? p.createdAt.toISOString() : null
+      });
+    });
+
+    // Format the votes for the frontend
+    const votes = participations.map(p => {
+      // Convert the document to a plain object with proper typing
+      const pObj = p.toObject() as {
+        _id: mongoose.Types.ObjectId;
+        user: any; // We'll use a type guard function to narrow this type
+        position: string;
+        amount: number;
+        tokenType: 'SOL' | 'SOLY';
+        createdAt: Date;
+      };
+
+      // Create a safe user object with default values
+      const userObj = {
+        id: 'unknown',
+        username: 'Anonymous',
+        avatar: ''
+      };
+
+      // Handle different user object types
+      if (pObj.user) {
+        // Type guard function to check if user is a populated object
+        const isPopulatedUser = (user: any): user is {
+          _id: mongoose.Types.ObjectId;
+          username?: string;
+          avatar?: string;
+        } => {
+          return typeof user === 'object' && '_id' in user;
+        };
+
+        if (isPopulatedUser(pObj.user)) {
+          // User is populated
+          userObj.id = pObj.user._id.toString();
+          if (pObj.user.username) {
+            userObj.username = pObj.user.username;
+          }
+          if (pObj.user.avatar) {
+            userObj.avatar = pObj.user.avatar;
+          }
+        } else if (mongoose.Types.ObjectId.isValid(pObj.user as any)) {
+          // User is just an ObjectId
+          userObj.id = (pObj.user as mongoose.Types.ObjectId).toString();
+        }
+      }
+
+      // Ensure createdAt is a valid date and convert to ISO string
+      let createdAtISO = new Date().toISOString(); // Default to current time
+
+      try {
+        if (pObj.createdAt) {
+          const date = new Date(pObj.createdAt);
+          if (!isNaN(date.getTime())) {
+            createdAtISO = date.toISOString();
+          } else {
+            console.warn(`Invalid createdAt date for participation ${pObj._id}: ${pObj.createdAt}`);
+          }
+        } else {
+          console.warn(`Missing createdAt for participation ${pObj._id}`);
+        }
+      } catch (e) {
+        console.error(`Error formatting createdAt for participation ${pObj._id}:`, e);
+      }
+
+      return {
+        id: pObj._id.toString(),
+        _id: pObj._id.toString(), // Include both id and _id for compatibility
+        user: userObj,
+        position: pObj.position, // 'yes' or 'no' for binary predictions
+        amount: pObj.amount,
+        tokenType: pObj.tokenType,
+        timestamp: pObj.createdAt,
+        createdAt: createdAtISO, // Add explicit createdAt field in ISO format
+        // Calculate the probability at the time of this vote
+        // This is a simplified version - in a real implementation, you would store the probability with each vote
+        probability: prediction.choices.find(c => c.id === pObj.position)?.percentage || 50
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: votes.length,
+      votes
+    });
+  } catch (error) {
+    console.error('Error getting prediction votes:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get top winners for a prediction
+// @route   GET /api/predictions/:id/winners
+// @access  Public
+export const getPredictionWinners = async (req: Request, res: Response) => {
+  try {
+    const predictionId = req.params.id;
+    const limit = Number(req.query.limit) || 3; // Default to top 3 winners
+
+    // Check if the ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(predictionId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid prediction ID format'
+      });
+    }
+
+    // Find the prediction
+    const prediction = await Prediction.findById(predictionId);
+
+    if (!prediction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prediction not found'
+      });
+    }
+
+    // Check if prediction is resolved
+    if (prediction.status !== 'resolved') {
+      return res.status(400).json({
+        success: false,
+        message: 'Prediction is not resolved yet'
+      });
+    }
+
+    // Find winning participations for this prediction
+    const winningParticipations = await Participation.find({
+      prediction: predictionId,
+      position: prediction.resolvedChoice,
+      status: 'won'
+    })
+      .sort({ reward: -1 }) // Sort by highest reward first
+      .limit(limit)
+      .populate('user', 'username avatar');
+
+    // Format the winners for the response
+    const winners = winningParticipations.map(p => {
+      // Convert the document to a plain object with proper typing
+      const pObj = p.toObject() as {
+        _id: mongoose.Types.ObjectId;
+        user: any;
+        position: string;
+        amount: number;
+        reward?: number;
+        tokenType: 'SOL' | 'SOLY';
+      };
+
+      // Extract user data
+      const userObj = pObj.user ? {
+        username: (pObj.user as any).username || 'Anonymous',
+        avatar: (pObj.user as any).avatar || '/images/default-avatar.png'
+      } : {
+        username: 'Anonymous',
+        avatar: '/images/default-avatar.png'
+      };
+
+      return {
+        id: pObj._id.toString(),
+        user: userObj,
+        position: pObj.position,
+        amount: pObj.amount,
+        reward: pObj.reward || 0,
+        tokenType: pObj.tokenType
+      };
+    });
+
+    // Get the asset price at prediction resolution time
+    let assetPriceAtResolution = null;
+    try {
+      if (prediction.resolvedAt) {
+        const priceData = await getCurrentPrice(prediction.asset);
+        // The getCurrentPrice function returns a number directly
+        assetPriceAtResolution = priceData;
+      }
+    } catch (priceError) {
+      console.error('Error fetching asset price:', priceError);
+      // Continue without price data
+    }
+
+    res.status(200).json({
+      success: true,
+      count: winners.length,
+      winners,
+      prediction: {
+        id: prediction._id,
+        title: prediction.title,
+        asset: prediction.asset,
+        resolvedChoice: prediction.resolvedChoice,
+        resolvedAt: prediction.resolvedAt,
+        assetPriceAtResolution
+      }
+    });
+  } catch (error) {
+    console.error('Error getting prediction winners:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};

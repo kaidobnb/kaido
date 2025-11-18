@@ -1,0 +1,19 @@
+{
+  "network": "BSC Mainnet",
+  "chainId": 56,
+  "contractName": "KaidoLPToken",
+  "contractAddress": "0x9c34729D6C5dE59D85C7Edee2A378C6E916044a5",
+  "deployerAddress": "0xac01Ee787F54FB1A2D8a08bA597c4b0a75Da83eb",
+  "transactionHash": "0x91cdb276043e48e58e71a4b7727e947589279288c5ce880590fe3b639c634c4b",
+  "gasUsed": "1092602",
+  "timestamp": "2025-10-11T16:09:23.655Z",
+  "contractDetails": {
+    "name": "Kaido LP",
+    "symbol": "KAIDO",
+    "decimals": 18,
+    "totalSupply": "1000000000000000000000000000",
+    "owner": "0xac01Ee787F54FB1A2D8a08bA597c4b0a75Da83eb",
+    "logo": "https://kaidobnb.xyz/kaido.png",
+    "metadata": "https://kaidobnb.xyz/kaido-lp-metadata.json"
+  }
+}
