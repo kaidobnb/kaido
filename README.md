@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.19-orange)](https://soliditylang.org/)
 
-KAIDO revolutionizes prediction markets by combining AI-powered market creation with a unique Loss-Edge Pool mechanism that compensates losing participants, creating a more sustainable and engaging prediction ecosystem on BNB Chain.
+KAIDO revolutionizes prediction markets by combining AI-powered market creation with a unique Loss-Edge Pool mechanism that provides **daily BNB airdrops** to losing participants, creating a more sustainable and engaging prediction ecosystem on BNB Chain.
 
 ---
 
@@ -30,11 +30,11 @@ KAIDO revolutionizes prediction markets by combining AI-powered market creation 
 
 ## 🌟 Overview
 
-KAIDO is a next-generation prediction market platform that addresses the fundamental problem of traditional prediction markets: **losers walk away with nothing**. Our Loss-Edge Pool mechanism ensures that even losing participants receive compensation (2% of all entry fees), creating a more sustainable and engaging ecosystem.
+KAIDO is a next-generation prediction market platform that addresses the fundamental problem of traditional prediction markets: **losers walk away with nothing**. Our Loss-Edge Pool mechanism ensures that even losing participants receive **daily BNB airdrops** (2% of all entry fees), creating a more sustainable and engaging ecosystem.
 
 ### What Makes KAIDO Unique?
 
-1. **Loss-Edge Pool**: First prediction market to compensate losing participants
+1. **Loss-Edge Pool**: First prediction market to provide **daily BNB airdrops** to losing participants
 2. **AI-Powered Markets**: KAIDO AI agent autonomously creates and manages prediction markets
 3. **LP Staking Vault**: Stake BNB to earn yield from platform fees without market exposure
 4. **Hybrid Architecture**: Combines on-chain security with off-chain efficiency
@@ -50,7 +50,7 @@ KAIDO stands out in the prediction market landscape with unique features that ad
 
 | Feature | **KAIDO** | Polymarket | Kalshi | Other Platforms |
 |---------|-----------|------------|--------|-----------------|
-| **Loss Compensation** | ✅ 2% Loss-Edge Pool for losers | ❌ Losers get nothing | ❌ Losers get nothing | ❌ Losers get nothing |
+| **Loss Compensation** | ✅ Daily BNB airdrops (2% Loss-Edge Pool) | ❌ Losers get nothing | ❌ Losers get nothing | ❌ Losers get nothing |
 | **AI-Powered Market Creation** | ✅ Autonomous KAIDO AI Agent | ❌ Manual creation only | ❌ Manual creation only | ❌ Manual creation only |
 | **Auto-Resolution** | ✅ Oracle-based (Crypto, Sports, Real-World*) | ⚠️ Manual resolution | ⚠️ Manual resolution | ⚠️ Mostly manual |
 | **LP Staking Vault** | ✅ Earn yield without market exposure | ❌ No LP program | ❌ No LP program | ⚠️ Limited options |
@@ -71,7 +71,7 @@ KAIDO stands out in the prediction market landscape with unique features that ad
 ### Why KAIDO Wins
 
 #### 🎯 **For Predictors**
-- **Never Walk Away Empty**: Loss-Edge Pool ensures you get something back even when you lose
+- **Never Walk Away Empty**: Receive **daily BNB airdrops** from Loss-Edge Pool even when you lose
 - **Lower Barrier to Entry**: BNB Chain's low fees make micro-predictions viable
 - **Earn While You Play**: Referral rewards, creator fees, and engagement bonuses
 - **True Ownership**: Fully decentralized, no KYC, no geographic restrictions
@@ -104,9 +104,10 @@ KAIDO stands out in the prediction market landscape with unique features that ad
 - **Smart Market Selection**: AI analyzes trending topics and creates relevant markets
 
 ### 💰 Loss-Edge Pool System
-- **2% Compensation**: Losing participants receive 2% of all entry fees
+- **Daily BNB Airdrops**: Losing participants receive **daily BNB airdrops** from 2% of all entry fees
 - **Sustainable Ecosystem**: Reduces the sting of losing, encouraging continued participation
 - **Fair Distribution**: Proportional distribution based on participation amount
+- **Automatic Distribution**: Airdrops sent directly to your wallet every 24 hours
 
 ### 🏦 LP Staking Vault
 - **Dual Vault System**: 70% Boost Vault + 30% Creator/Engagement Vault
@@ -169,7 +170,7 @@ graph TD
     R -->|Yes| S[Oracle Resolves]
     S --> T{Outcome}
     T -->|Winner| U[Claim Winnings]
-    T -->|Loser| V[Claim Loss-Edge Compensation]
+    T -->|Loser| V[Receive Daily BNB Airdrops]
 
     Q --> W[Claim LP Rewards]
 
@@ -364,7 +365,7 @@ Main factory contract for creating and managing prediction markets.
 Handles fee distribution across the ecosystem.
 
 **Fee Structure (5% total):**
-- 2% → Loss-Edge Pool (compensation for losers)
+- 2% → Loss-Edge Pool (daily BNB airdrops for losers)
 - 1% → Treasury (platform development)
 - 1% → Creator (market creator)
 - 1% → Affiliate (referrer, if applicable)
@@ -374,12 +375,13 @@ Handles fee distribution across the ecosystem.
 - `recordCreatorYield()`: Record LP yield from creator fees
 
 #### **LossEdgeVault.sol**
-Manages the loss compensation pool.
+Manages the loss compensation pool and distributes daily BNB airdrops to losing participants.
 
 **Key Functions:**
 - `deposit()`: Add funds to loss-edge pool
-- `claimCompensation()`: Losers claim their share
-- `getCompensationAmount()`: Calculate claimable amount
+- `claimCompensation()`: Losers claim their daily BNB airdrops
+- `getCompensationAmount()`: Calculate claimable airdrop amount
+- `distributeDailyAirdrops()`: Automated daily distribution to losers
 
 #### **LPVault.sol**
 Dual-vault LP staking system with three yield engines.
@@ -422,7 +424,7 @@ KAIDO's development roadmap focuses on expanding AI capabilities, launching real
 - 21+ active predictions created
 - Fully functional AI agent creating markets autonomously
 - Auto-resolution working for crypto and sports events
-- Loss-Edge Pool compensating losing participants
+- Loss-Edge Pool distributing daily BNB airdrops to losing participants
 
 ---
 
