@@ -17,6 +17,8 @@ import badgeRoutes from './routes/badgeRoutes';
 // import presaleRoutes from './routes/presaleRoutes'; // Disabled - requires BNB implementation
 import testRoutes from './routes/testRoutes';
 import lpVaultRoutes from './routes/lpVaultRoutes';
+// Temporarily disabled - has TypeScript errors that need fixing
+// import realWorldEventRoutes from './routes/realWorldEventRoutes';
 import { startPredictionResolutionJob } from './jobs/predictionResolutionJob';
 import { startHybridPredictionResolutionJob } from './jobs/hybridPredictionResolutionJob';
 import { startAutoPredictionJob } from './jobs/autoPredictionJob';
@@ -104,6 +106,8 @@ app.use('/api/badges', protect, badgeRoutes);
 app.use('/api/test', testRoutes); // Test routes for admin functions
 app.use('/api/agent', agentRoutes); // KAIDO Agent routes (admin only)
 app.use('/api/lp-vault', lpVaultRoutes); // LP Vault routes (public read access)
+// Temporarily disabled - has TypeScript errors that need fixing
+// app.use('/api/realworld', realWorldEventRoutes); // Real-world event prediction routes
 
 // Health check route
 app.get('/', (_req: Request, res: Response) => {

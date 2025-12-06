@@ -114,7 +114,7 @@ export abstract class BaseScraper {
    */
   protected extractMultiple($: cheerio.CheerioAPI, selector: string): string[] {
     const results: string[] = [];
-    $(selector).each((_, element) => {
+    $(selector).each((_: any, element: any) => {
       const text = this.cleanText($(element).text());
       if (text) results.push(text);
     });

@@ -31,7 +31,7 @@ export interface IPrediction extends Document {
   title: string;
   description: string;
   type: 'binary' | 'multiple' | 'agent';
-  category: 'crypto' | 'sports'; // New field to distinguish prediction types
+  category: 'crypto' | 'sports' | 'realworld'; // New field to distinguish prediction types
   tokenType: 'SOL' | 'SOLY' | 'BNB' | 'KAIDO';
   creator: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -63,6 +63,18 @@ export interface IPrediction extends Document {
   // KAIDO Agent metadata
   isAgentCreated?: boolean;
   finalPrice?: number;
+  // Oracle data for real-world events
+  oracleData?: {
+    requiresOracle: boolean;
+    eventType: string; // e.g., "election_result", "movie_award", "product_launch"
+    claim: string; // The claim to verify
+    schema?: {
+      description: string;
+      fields: Record<string, { type: string; description: string }>;
+    };
+    verificationProofId?: mongoose.Types.ObjectId;
+    suggestedSources?: string[]; // Suggested URLs for verification
+  };
 }
 
 const PredictionSchema: Schema = new Schema(
@@ -142,7 +154,7 @@ const PredictionSchema: Schema = new Schema(
     },
     category: {
       type: String,
-      enum: ['crypto', 'sports'],
+      enum: ['crypto', 'sports', 'realworld'],
       default: 'crypto',
       required: true,
     },
@@ -307,6 +319,28 @@ const PredictionSchema: Schema = new Schema(
     },
     finalPrice: {
       type: Number,
+    },
+    // Oracle data for real-world events
+    oracleData: {
+      requiresOracle: {
+        type: Boolean,
+        default: false,
+      },
+      eventType: {
+        type: String,
+      },
+      claim: {
+        type: String,
+      },
+      schema: {
+        description: String,
+        fields: Schema.Types.Mixed,
+      },
+      verificationProofId: {
+        type: Schema.Types.ObjectId,
+        ref: 'VerificationProof',
+      },
+      suggestedSources: [String],
     },
   },
   {

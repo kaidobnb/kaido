@@ -95,7 +95,7 @@ export class PuppeteerScraper extends BaseScraper {
           fullPage: true,
           type: 'png'
         });
-        screenshot = screenshotBuffer.toString('base64');
+        screenshot = Buffer.from(screenshotBuffer).toString('base64');
       }
 
       this.log(`Successfully scraped ${this.config.url} (${html.length} bytes)`);

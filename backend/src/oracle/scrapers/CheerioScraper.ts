@@ -92,9 +92,9 @@ export class CheerioScraper extends BaseScraper {
       const $ = this.parseHTML(result.html);
       const items: any[] = [];
 
-      $(config.containerSelector).find(config.itemSelector).each((_, element) => {
+      $(config.containerSelector).find(config.itemSelector).each((_: any, element: any) => {
         const item: Record<string, any> = {};
-        
+
         for (const [key, selector] of Object.entries(config.fields)) {
           const value = this.extractText($, selector);
           if (value) item[key] = value;

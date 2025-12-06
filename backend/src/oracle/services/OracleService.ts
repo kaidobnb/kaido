@@ -82,7 +82,7 @@ export class OracleService {
         success: true,
         verified: consensus.verified,
         confidence: consensus.confidence,
-        proofId: proof._id.toString()
+        proofId: (proof._id as any).toString()
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -13,10 +13,12 @@ KAIDO revolutionizes prediction markets by combining AI-powered market creation 
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
+- [Competitive Advantage](#-competitive-advantage)
 - [Key Features](#-key-features)
 - [User Journey](#-user-journey)
 - [Architecture](#-architecture)
 - [Smart Contracts](#-smart-contracts)
+- [Roadmap](#-roadmap)
 - [Open Source Dependencies](#-open-source-dependencies)
 - [Deployment Instructions](#-deployment-instructions)
 - [Project Structure](#-project-structure)
@@ -37,6 +39,60 @@ KAIDO is a next-generation prediction market platform that addresses the fundame
 3. **LP Staking Vault**: Stake BNB to earn yield from platform fees without market exposure
 4. **Hybrid Architecture**: Combines on-chain security with off-chain efficiency
 5. **Built on BNB Chain**: Leveraging BSC's speed and low transaction costs
+
+---
+
+## 🏆 Competitive Advantage
+
+KAIDO stands out in the prediction market landscape with unique features that address the core problems of existing platforms.
+
+### KAIDO vs. Traditional Prediction Markets
+
+| Feature | **KAIDO** | Polymarket | Kalshi | Other Platforms |
+|---------|-----------|------------|--------|-----------------|
+| **Loss Compensation** | ✅ 2% Loss-Edge Pool for losers | ❌ Losers get nothing | ❌ Losers get nothing | ❌ Losers get nothing |
+| **AI-Powered Market Creation** | ✅ Autonomous KAIDO AI Agent | ❌ Manual creation only | ❌ Manual creation only | ❌ Manual creation only |
+| **Auto-Resolution** | ✅ Oracle-based (Crypto, Sports, Real-World*) | ⚠️ Manual resolution | ⚠️ Manual resolution | ⚠️ Mostly manual |
+| **LP Staking Vault** | ✅ Earn yield without market exposure | ❌ No LP program | ❌ No LP program | ⚠️ Limited options |
+| **Creator Incentives** | ✅ 1% creator fee + affiliate program | ❌ No creator rewards | ❌ No creator rewards | ⚠️ Minimal rewards |
+| **Blockchain** | ✅ BNB Chain (low fees, fast) | ⚠️ Polygon (higher fees) | ❌ Centralized | ⚠️ Various chains |
+| **Decentralization** | ✅ Fully on-chain settlements | ⚠️ Hybrid (centralized orderbook) | ❌ Fully centralized | ⚠️ Varies |
+| **User Onboarding** | ✅ Consumer-first UX | ⚠️ DeFi-native only | ✅ Mainstream friendly | ⚠️ Complex interfaces |
+| **Referral Program** | ✅ 1% lifetime commission in BNB | ❌ No referral program | ❌ No referral program | ⚠️ Limited programs |
+| **Engagement Rewards** | ✅ Streaks, badges, leaderboards | ❌ No gamification | ❌ No gamification | ⚠️ Minimal gamification |
+| **Real-World Events** | 🔄 In Training (AI Oracle)* | ✅ Available | ✅ Available | ⚠️ Limited |
+| **Regulatory Compliance** | ✅ Decentralized (no KYC) | ⚠️ KYC required (US blocked) | ⚠️ KYC required (US only) | ⚠️ Varies by platform |
+| **Mobile Experience** | ✅ Fully responsive PWA | ⚠️ Mobile app (limited) | ✅ Native apps | ⚠️ Varies |
+| **Transaction Costs** | ✅ ~$0.10 per transaction | ⚠️ ~$0.50-$2 per transaction | ❌ Centralized (hidden fees) | ⚠️ Varies |
+| **Liquidity Bootstrapping** | ✅ LP Vault + Loss-Edge Pool | ⚠️ Market makers only | ❌ Centralized liquidity | ⚠️ Limited mechanisms |
+
+**\*Real-World Event Predictions**: KAIDO is currently training our AI oracle system to verify real-world events using web scraping and LLM-powered verification. This feature is on our roadmap and will enable users to create verifiable predictions about elections, awards, product launches, regulatory decisions, and more - all automatically resolved by our AI oracle with multi-source consensus verification.
+
+### Why KAIDO Wins
+
+#### 🎯 **For Predictors**
+- **Never Walk Away Empty**: Loss-Edge Pool ensures you get something back even when you lose
+- **Lower Barrier to Entry**: BNB Chain's low fees make micro-predictions viable
+- **Earn While You Play**: Referral rewards, creator fees, and engagement bonuses
+- **True Ownership**: Fully decentralized, no KYC, no geographic restrictions
+
+#### 💼 **For Creators & Influencers**
+- **Monetize Your Audience**: Earn 1% of every prediction you create
+- **Affiliate Revenue**: 1% lifetime commission on all referral activity
+- **LP Backing**: Platform backs top creators with liquidity support
+- **No Platform Risk**: Decentralized means no deplatforming
+
+#### 🏦 **For Liquidity Providers**
+- **Real Yield**: Earn from actual platform fees, not token inflation
+- **No Market Exposure**: LP funds never used for payouts
+- **Triple Yield Engines**: Boost + Creator + Engagement revenue streams
+- **Consumer-Friendly**: Simple stake-and-earn model, no complex strategies
+
+#### 🚀 **For the Ecosystem**
+- **Sustainable Growth**: Loss-Edge Pool reduces churn and increases retention
+- **AI Automation**: Scales market creation without human bottlenecks
+- **BNB Chain Native**: Leverages BSC's speed, cost, and ecosystem
+- **Open & Composable**: Built on open standards, integrates with DeFi
 
 ---
 
@@ -344,6 +400,149 @@ Dual-vault LP staking system with three yield engines.
 1. **KAIDO Boost Yield**: 30% of treasury's 1% fee
 2. **Creator Backing Yield**: 30% of (creator's 1% + affiliate's 1%)
 3. **Engagement Boost Yield**: 30% of campaign fees
+
+---
+
+## 🗺️ Roadmap
+
+KAIDO's development roadmap focuses on expanding AI capabilities, launching real-world event predictions, and scaling the platform ecosystem.
+
+### Phase 1: Foundation (Q4 2024 - Q1 2025) ✅ **COMPLETE**
+
+**Core Platform Launch**
+- ✅ Deploy smart contracts on BNB Chain Testnet
+- ✅ Launch KAIDO AI Agent for crypto and sports predictions
+- ✅ Implement Loss-Edge Pool mechanism
+- ✅ Build consumer-friendly web interface
+- ✅ Integrate CryptoCompare and Sports APIs for auto-resolution
+- ✅ Launch referral and affiliate program
+- ✅ Deploy LP Vault with triple yield engines
+
+**Achievements:**
+- 21+ active predictions created
+- Fully functional AI agent creating markets autonomously
+- Auto-resolution working for crypto and sports events
+- Loss-Edge Pool compensating losing participants
+
+---
+
+### Phase 2: AI Oracle Training (Q1 2025 - Q2 2025) 🔄 **IN PROGRESS**
+
+**Real-World Event Oracle Development**
+- 🔄 **Training AI Oracle for Real-World Events**: Developing LLM-powered verification system using web scraping and multi-source consensus
+- 🔄 **Event Categories in Training**:
+  - 🗳️ Election Results (presidential, congressional, local elections)
+  - 🏆 Awards & Ceremonies (Oscars, Grammys, Nobel Prize, etc.)
+  - 📱 Product Launches (Apple, Tesla, tech releases)
+  - 💼 Business M&A (acquisitions, IPOs, corporate events)
+  - 📈 IPO & Stock Listings (company debuts, market events)
+  - ⚖️ Regulatory Decisions (SEC rulings, policy changes)
+  - 🌤️ Weather Events (hurricanes, temperature records)
+  - 🚀 Space Missions (launches, landings, discoveries)
+
+**Oracle Architecture:**
+- **Multi-Source Verification**: Scrapes 3-5 trusted news sources for consensus
+- **AI-Powered Parsing**: GPT-4 extracts structured data from HTML content
+- **Confidence Scoring**: AI assigns confidence levels to each verification
+- **Consensus Methods**: Unanimous, majority, weighted, or manual resolution
+- **Audit Trail**: Stores raw HTML, screenshots, and AI reasoning for transparency
+
+**Technical Implementation:**
+- ✅ Built CheerioScraper for static HTML parsing
+- ✅ Built PuppeteerScraper for dynamic JavaScript content
+- ✅ Integrated OpenAI API for LLM verification
+- ✅ Created guided prediction creation wizard (4-step flow)
+- ✅ Implemented AI claim validation and schema generation
+- 🔄 Training oracle on historical events for accuracy
+- 🔄 Building trusted source database for each event category
+- 🔄 Testing consensus algorithms for reliability
+
+**Expected Launch:** Q2 2025
+
+---
+
+### Phase 3: KAIDO Token & Pro Tier (Q2 2025 - Q3 2025) 📋 **PLANNED**
+
+**Token Launch**
+- 📋 Launch KAIDO governance token on BNB Chain
+- 📋 Implement token staking for platform governance
+- 📋 Introduce KAIDO Pro subscription tier
+
+**KAIDO Pro Features:**
+- 📋 **AI-Powered Prediction Insights**: Get AI analysis and recommendations
+- 📋 **Automatic Treasury Access**: Auto-stake winnings into LP Vault
+- 📋 **Advanced Analytics**: Detailed performance metrics and trends
+- 📋 **Priority Market Creation**: Skip queue for AI-created markets
+- 📋 **Exclusive Badges & Perks**: Special recognition and rewards
+- 📋 **Early Access**: First access to new features and event categories
+
+**Tokenomics:**
+- 📋 Governance rights for platform decisions
+- 📋 Staking rewards from platform revenue
+- 📋 Discounted fees for KAIDO holders
+- 📋 Pro tier subscription payment in KAIDO
+
+---
+
+### Phase 4: Market Expansion (Q3 2025 - Q4 2025) 📋 **PLANNED**
+
+**New Prediction Categories**
+- 📋 **Esports**: League of Legends, Dota 2, CS:GO, Valorant
+- 📋 **Entertainment**: Box office results, streaming rankings, TV ratings
+- 📋 **Finance**: Stock prices, commodity prices, economic indicators
+- 📋 **Technology**: GitHub stars, app downloads, user growth metrics
+- 📋 **Social Media**: Follower counts, viral trends, platform metrics
+
+**Geographic Expansion**
+- 📋 Multi-language support (Spanish, Chinese, Japanese, Korean)
+- 📋 Regional sports leagues (cricket, rugby, baseball)
+- 📋 Local event predictions (regional elections, local news)
+
+**Platform Enhancements**
+- 📋 Mobile native apps (iOS & Android)
+- 📋 Advanced trading features (limit orders, stop-loss)
+- 📋 Social features (prediction groups, private leagues)
+- 📋 Enhanced analytics and insights dashboard
+
+---
+
+### Phase 5: Ecosystem Growth (Q4 2025 - Q1 2026) 📋 **PLANNED**
+
+**Strategic Partnerships**
+- 📋 Partner with sports leagues for official predictions
+- 📋 Collaborate with news outlets for verified event data
+- 📋 Integrate with DeFi protocols for cross-platform yield
+- 📋 Onboard influencers and content creators
+
+**Platform Scaling**
+- 📋 Mainnet launch on BNB Chain
+- 📋 Cross-chain expansion (Ethereum, Polygon, Arbitrum)
+- 📋 Institutional liquidity partnerships
+- 📋 API for third-party integrations
+
+**Community & Governance**
+- 📋 Launch DAO for decentralized governance
+- 📋 Community-driven market creation
+- 📋 Grant program for developers and creators
+- 📋 Bug bounty and security audit program
+
+---
+
+### Long-Term Vision (2026+) 🌟
+
+**Become the Consumer Layer for Prediction Markets**
+- 🌟 **1M+ Active Users**: Scale to mainstream adoption
+- 🌟 **AI-First Platform**: Most markets created and resolved by AI
+- 🌟 **Real-World Integration**: Predictions on any verifiable event
+- 🌟 **Cross-Chain Hub**: Unified prediction market across all chains
+- 🌟 **Creator Economy**: Thousands of influencers earning from predictions
+- 🌟 **Institutional Adoption**: Hedge funds and institutions using KAIDO for market sentiment
+
+**Innovation Focus:**
+- 🌟 Advanced AI models for prediction accuracy
+- 🌟 Decentralized oracle network for verification
+- 🌟 Zero-knowledge proofs for privacy
+- 🌟 Layer 2 scaling for instant settlements
 
 ---
 
@@ -961,11 +1160,8 @@ SOFTWARE.
 
 ## 🔗 Links
 
-- **Website**: [kaido.io](https://kaido.io) (coming soon)
-- **Documentation**: [docs.kaido.io](https://docs.kaido.io) (coming soon)
-- **Twitter**: [@KaidoMarkets](https://twitter.com/KaidoMarkets)
-- **Discord**: [Join our community](https://discord.gg/kaido)
-- **Telegram**: [KAIDO Community](https://t.me/kaidomarkets)
+- **Website**: [kaidobnb.xyz](https://kaidobnb.xyz)
+- **X (Twitter)**: [@Kaidobnb](https://x.com/Kaidobnb)
 
 ---
 
@@ -985,9 +1181,8 @@ SOFTWARE.
 
 Need help? Reach out to us:
 
-- **Email**: support@kaido.io
-- **Discord**: [KAIDO Support](https://discord.gg/kaido)
-- **GitHub Issues**: [Report a bug](https://github.com/your-org/kaido/issues)
+- **Website**: [kaidobnb.xyz](https://kaidobnb.xyz)
+- **X (Twitter)**: [@Kaidobnb](https://x.com/Kaidobnb)
 
 ---
 

@@ -10,6 +10,8 @@ import {
   getOracleBalance,
   isContractServiceConfigured,
 } from '../services/contractService';
+import Prediction from '../models/Prediction';
+import { OracleService } from '../oracle/services/OracleService';
 
 /**
  * Hybrid Prediction Resolution Job
@@ -114,34 +116,78 @@ export const hybridPredictionResolutionJob = new CronJob(
           let resolvedChoice: string | null = null;
           let finalPrice = 0;
 
-          // Determine the resolved choice based on prediction type
-          if (predictionType === 0) {
-            // BINARY prediction
-            console.log(`   Checking if ${asset} reached target price $${targetPrice}...`);
-            
-            const targetReached = await checkPriceTargetReached(
-              asset,
-              targetPrice,
-              new Date(createdAt * 1000),
-              new Date(endDate * 1000)
-            );
+          // Check if this is a real-world event prediction (requires oracle)
+          const dbPrediction = await Prediction.findOne({ contractAddress: predictionId });
 
-            resolvedChoice = targetReached ? 'YES' : 'NO';
-            finalPrice = await getCurrentPrice(asset);
-            
-            console.log(`   Binary prediction resolved as: ${resolvedChoice}`);
-            console.log(`   Final price: $${finalPrice}`);
-          } else if (predictionType === 1) {
-            // MULTIPLE-CHOICE prediction
-            console.log(`   Determining price range for ${asset}...`);
-            
-            // Get current price at end date
-            finalPrice = await getCurrentPrice(asset);
-            
-            // For multiple choice, we need to determine which range the price falls into
-            // This would require the choices to be stored in the contract
-            // For now, we'll skip multiple choice predictions
-            console.log(`   ⚠️  Multiple-choice predictions not yet supported in hybrid mode`);
+          if (dbPrediction?.category === 'realworld' && dbPrediction.oracleData?.requiresOracle) {
+            console.log(`   🔮 Using oracle for real-world event verification...`);
+
+            try {
+              const oracle = new OracleService(process.env.OPENAI_API_KEY!);
+
+              const oracleResult = await oracle.verifyEvent({
+                predictionId: String(dbPrediction._id),
+                eventType: dbPrediction.oracleData.eventType,
+                claim: dbPrediction.oracleData.claim,
+                schema: dbPrediction.oracleData.schema!,
+                minimumSources: 3,
+                minimumConfidence: 70,
+                minimumAgreement: 66,
+              });
+
+              if (oracleResult.success && oracleResult.verified) {
+                resolvedChoice = 'YES'; // Claim verified
+                console.log(`   ✅ Oracle verified claim with ${oracleResult.confidence}% confidence`);
+
+                // Store proof ID
+                await Prediction.findByIdAndUpdate(dbPrediction._id, {
+                  'oracleData.verificationProofId': oracleResult.proofId,
+                });
+              } else {
+                resolvedChoice = 'NO'; // Claim not verified
+                console.log(`   ❌ Oracle could not verify claim (confidence: ${oracleResult.confidence}%)`);
+              }
+            } catch (error) {
+              console.error(`   ❌ Oracle verification failed:`, error);
+              // Default to NO if oracle fails
+              resolvedChoice = 'NO';
+            }
+          }
+          // Crypto predictions
+          else if (category === 0) {
+            if (predictionType === 0) {
+              // BINARY prediction
+              console.log(`   Checking if ${asset} reached target price $${targetPrice}...`);
+
+              const targetReached = await checkPriceTargetReached(
+                asset,
+                targetPrice,
+                new Date(createdAt * 1000),
+                new Date(endDate * 1000)
+              );
+
+              resolvedChoice = targetReached ? 'YES' : 'NO';
+              finalPrice = await getCurrentPrice(asset);
+
+              console.log(`   Binary prediction resolved as: ${resolvedChoice}`);
+              console.log(`   Final price: $${finalPrice}`);
+            } else if (predictionType === 1) {
+              // MULTIPLE-CHOICE prediction
+              console.log(`   Determining price range for ${asset}...`);
+
+              // Get current price at end date
+              finalPrice = await getCurrentPrice(asset);
+
+              // For multiple choice, we need to determine which range the price falls into
+              // This would require the choices to be stored in the contract
+              // For now, we'll skip multiple choice predictions
+              console.log(`   ⚠️  Multiple-choice predictions not yet supported in hybrid mode`);
+              continue;
+            }
+          }
+          // Sports predictions (category === 1) would be handled here
+          else {
+            console.log(`   ⚠️  Sports predictions not yet supported in hybrid mode`);
             continue;
           }
 
