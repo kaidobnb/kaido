@@ -409,7 +409,7 @@ Dual-vault LP staking system with three yield engines.
 
 KAIDO's development roadmap focuses on expanding AI capabilities, launching real-world event predictions, and scaling the platform ecosystem.
 
-### Phase 1: Foundation (Q4 2024 - Q1 2025) ✅ **COMPLETE**
+### Phase 1: Foundation (Q3 2025 - Q4 2025) ✅ **COMPLETE**
 
 **Core Platform Launch**
 - ✅ Deploy smart contracts on BNB Chain Testnet
@@ -428,7 +428,7 @@ KAIDO's development roadmap focuses on expanding AI capabilities, launching real
 
 ---
 
-### Phase 2: AI Oracle Training (Q1 2025 - Q2 2025) 🔄 **IN PROGRESS**
+### Phase 2: AI Oracle Training (Q4 2025 - Q1 2026) 🔄 **IN PROGRESS**
 
 **Real-World Event Oracle Development**
 - 🔄 **Training AI Oracle for Real-World Events**: Developing LLM-powered verification system using web scraping and multi-source consensus
@@ -459,11 +459,11 @@ KAIDO's development roadmap focuses on expanding AI capabilities, launching real
 - 🔄 Building trusted source database for each event category
 - 🔄 Testing consensus algorithms for reliability
 
-**Expected Launch:** Q2 2025
+**Expected Launch:** Q1 2026
 
 ---
 
-### Phase 3: KAIDO Token & Pro Tier (Q2 2025 - Q3 2025) 📋 **PLANNED**
+### Phase 3: KAIDO Token & Pro Tier (Q1 2026 - Q2 2026) 📋 **PLANNED**
 
 **Token Launch**
 - 📋 Launch KAIDO governance token on BNB Chain
@@ -486,7 +486,7 @@ KAIDO's development roadmap focuses on expanding AI capabilities, launching real
 
 ---
 
-### Phase 4: Market Expansion (Q3 2025 - Q4 2025) 📋 **PLANNED**
+### Phase 4: Market Expansion (Q2 2026 - Q3 2026) 📋 **PLANNED**
 
 **New Prediction Categories**
 - 📋 **Esports**: League of Legends, Dota 2, CS:GO, Valorant
@@ -508,7 +508,7 @@ KAIDO's development roadmap focuses on expanding AI capabilities, launching real
 
 ---
 
-### Phase 5: Ecosystem Growth (Q4 2025 - Q1 2026) 📋 **PLANNED**
+### Phase 5: Ecosystem Growth (Q3 2026 - Q4 2026) 📋 **PLANNED**
 
 **Strategic Partnerships**
 - 📋 Partner with sports leagues for official predictions
@@ -530,7 +530,7 @@ KAIDO's development roadmap focuses on expanding AI capabilities, launching real
 
 ---
 
-### Long-Term Vision (2026+) 🌟
+### Long-Term Vision (2027+) 🌟
 
 **Become the Consumer Layer for Prediction Markets**
 - 🌟 **1M+ Active Users**: Scale to mainstream adoption
