@@ -60,13 +60,13 @@ KAIDO stands out in the prediction market landscape with unique features that ad
 | **User Onboarding** | ✅ Consumer-first UX | ⚠️ DeFi-native only | ✅ Mainstream friendly | ⚠️ Complex interfaces |
 | **Referral Program** | ✅ 1% lifetime commission in BNB | ❌ No referral program | ❌ No referral program | ⚠️ Limited programs |
 | **Engagement Rewards** | ✅ Streaks, badges, leaderboards | ❌ No gamification | ❌ No gamification | ⚠️ Minimal gamification |
-| **Real-World Events** | 🔄 In Training (AI Oracle)* | ✅ Available | ✅ Available | ⚠️ Limited |
+| **Real-World Events** | ✅ Built, Testing (Launch Early 2026)* | ✅ Available | ✅ Available | ⚠️ Limited |
 | **Regulatory Compliance** | ✅ Decentralized (no KYC) | ⚠️ KYC required (US blocked) | ⚠️ KYC required (US only) | ⚠️ Varies by platform |
 | **Mobile Experience** | ✅ Fully responsive PWA | ⚠️ Mobile app (limited) | ✅ Native apps | ⚠️ Varies |
 | **Transaction Costs** | ✅ ~$0.10 per transaction | ⚠️ ~$0.50-$2 per transaction | ❌ Centralized (hidden fees) | ⚠️ Varies |
 | **Liquidity Bootstrapping** | ✅ LP Vault + Loss-Edge Pool | ⚠️ Market makers only | ❌ Centralized liquidity | ⚠️ Limited mechanisms |
 
-**\*Real-World Event Predictions**: KAIDO is currently training our AI oracle system to verify real-world events using web scraping and LLM-powered verification. This feature is on our roadmap and will enable users to create verifiable predictions about elections, awards, product launches, regulatory decisions, and more - all automatically resolved by our AI oracle with multi-source consensus verification.
+**\*Real-World Event Predictions**: KAIDO has built and is currently testing our AI oracle system to verify real-world events using web scraping and LLM-powered verification. The system is fully implemented with 8 event categories and will launch in early 2026, enabling users to create verifiable predictions about elections, awards, product launches, regulatory decisions, and more - all automatically resolved by our AI oracle with multi-source consensus verification.
 
 ### Why KAIDO Wins
 
@@ -409,30 +409,43 @@ Dual-vault LP staking system with three yield engines.
 
 KAIDO's development roadmap focuses on expanding AI capabilities, launching real-world event predictions, and scaling the platform ecosystem.
 
-### Phase 1: Foundation (Q3 2025 - Q4 2025) ✅ **COMPLETE**
+### Phase 1: Foundation (Q4 2025) ✅ **COMPLETE**
 
 **Core Platform Launch**
 - ✅ Deploy smart contracts on BNB Chain Testnet
 - ✅ Launch KAIDO AI Agent for crypto and sports predictions
-- ✅ Implement Loss-Edge Pool mechanism
+- ✅ Implement Loss-Edge Pool mechanism with daily BNB airdrops
 - ✅ Build consumer-friendly web interface
 - ✅ Integrate CryptoCompare and Sports APIs for auto-resolution
 - ✅ Launch referral and affiliate program
 - ✅ Deploy LP Vault with triple yield engines
+
+**Real-World Event Oracle (Built, Testing)**
+- ✅ Built AI Oracle for Real-World Events using web scraping + LLM verification
+- ✅ Implemented 8 event categories (Elections, Awards, Product Launches, M&A, IPOs, Regulatory, Weather, Space)
+- ✅ Created CheerioScraper for static HTML parsing
+- ✅ Created PuppeteerScraper for dynamic JavaScript content
+- ✅ Integrated OpenAI API for AI-powered verification
+- ✅ Built 4-step guided prediction creation wizard
+- ✅ Implemented AI claim validation and schema generation
+- ✅ Multi-source verification with consensus algorithms
+- 🔄 **Testing phase** - Training on historical events and refining accuracy
+- 📅 **Launch: Early 2026**
 
 **Achievements:**
 - 21+ active predictions created
 - Fully functional AI agent creating markets autonomously
 - Auto-resolution working for crypto and sports events
 - Loss-Edge Pool distributing daily BNB airdrops to losing participants
+- Real-world event oracle system built and in testing
 
 ---
 
-### Phase 2: AI Oracle Training (Q4 2025 - Q1 2026) 🔄 **IN PROGRESS**
+### Phase 2: Real-World Events Launch & Optimization (Q1 2026) 📋 **PLANNED**
 
-**Real-World Event Oracle Development**
-- 🔄 **Training AI Oracle for Real-World Events**: Developing LLM-powered verification system using web scraping and multi-source consensus
-- 🔄 **Event Categories in Training**:
+**Real-World Event Predictions Public Launch**
+- 📋 **Launch real-world event predictions** to public (Early Q1 2026)
+- 📋 **8 Event Categories Available**:
   - 🗳️ Election Results (presidential, congressional, local elections)
   - 🏆 Awards & Ceremonies (Oscars, Grammys, Nobel Prize, etc.)
   - 📱 Product Launches (Apple, Tesla, tech releases)
@@ -442,24 +455,18 @@ KAIDO's development roadmap focuses on expanding AI capabilities, launching real
   - 🌤️ Weather Events (hurricanes, temperature records)
   - 🚀 Space Missions (launches, landings, discoveries)
 
-**Oracle Architecture:**
-- **Multi-Source Verification**: Scrapes 3-5 trusted news sources for consensus
-- **AI-Powered Parsing**: GPT-4 extracts structured data from HTML content
-- **Confidence Scoring**: AI assigns confidence levels to each verification
-- **Consensus Methods**: Unanimous, majority, weighted, or manual resolution
-- **Audit Trail**: Stores raw HTML, screenshots, and AI reasoning for transparency
+**Oracle Optimization:**
+- 📋 Expand trusted source database for each event category
+- 📋 Improve AI confidence scoring based on real-world usage
+- 📋 Optimize consensus algorithms for faster resolution
+- 📋 Add more event categories based on user demand
+- 📋 Implement community-sourced verification for edge cases
 
-**Technical Implementation:**
-- ✅ Built CheerioScraper for static HTML parsing
-- ✅ Built PuppeteerScraper for dynamic JavaScript content
-- ✅ Integrated OpenAI API for LLM verification
-- ✅ Created guided prediction creation wizard (4-step flow)
-- ✅ Implemented AI claim validation and schema generation
-- 🔄 Training oracle on historical events for accuracy
-- 🔄 Building trusted source database for each event category
-- 🔄 Testing consensus algorithms for reliability
-
-**Expected Launch:** Q1 2026
+**Platform Enhancements:**
+- 📋 Enhanced analytics dashboard for prediction performance
+- 📋 Improved mobile experience and PWA features
+- 📋 Social sharing features for predictions
+- 📋 Leaderboard improvements and new badge types
 
 ---
 
