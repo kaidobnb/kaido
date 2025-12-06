@@ -279,6 +279,63 @@ class UnifiedSportsService {
   }
 
   /**
+   * Get match result by match ID
+   * Returns the final score and status of a completed match
+   */
+  async getMatchResult(matchId: string): Promise<{
+    status: 'not_started' | 'live' | 'finished' | 'postponed' | 'cancelled';
+    homeScore?: number;
+    awayScore?: number;
+  } | null> {
+    try {
+      console.log(`Fetching match result for ${matchId} using ${this.currentProvider} API`);
+
+      const service = this.getService();
+
+      // Only sportradar has getMatchResult and getMatchDetails methods
+      if (this.currentProvider === 'sportradar') {
+        // Try to get match result from the service
+        if (typeof (service as any).getMatchResult === 'function') {
+          const result = await (service as any).getMatchResult(matchId);
+          if (result) {
+            return result;
+          }
+        }
+
+        // Fallback: try to get from match details
+        if (typeof (service as any).getMatchDetails === 'function') {
+          const match = await (service as any).getMatchDetails(matchId);
+          if (match) {
+            return {
+              status: match.status === 'ended' ? 'finished' : match.status,
+              homeScore: match.home_score,
+              awayScore: match.away_score
+            };
+          }
+        }
+      }
+
+      console.log(`Could not fetch match result for ${matchId} - provider ${this.currentProvider} does not support this method`);
+      return null;
+    } catch (error) {
+      console.error(`Error fetching match result for ${matchId}:`, error);
+
+      // Try fallback provider (only if current is not sportradar)
+      if (this.currentProvider !== 'sportradar') {
+        try {
+          if (typeof (sportradarService as any).getMatchResult === 'function') {
+            return await (sportradarService as any).getMatchResult(matchId);
+          }
+        } catch (fallbackError) {
+          console.error(`Fallback also failed for match result:`, fallbackError);
+        }
+      }
+
+      return null;
+    }
+  }
+
+  /**
    * Get API provider status and information
    */
   getProviderInfo(): {

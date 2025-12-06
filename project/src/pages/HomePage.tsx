@@ -8,6 +8,7 @@ import PredictionCreationFlow, { PredictionData } from '../components/chat/Predi
 import PredictionCard from '../components/predictions/PredictionCard';
 import HowItWorksSection from '../components/sections/HowItWorksSection';
 import EmbeddedChatWidget from '../components/chat/EmbeddedChatWidget';
+import LPVaultSection from '../components/sections/LPVaultSection';
 
 import FAQSection from '../components/sections/FAQSection';
 import RoadmapSection from '../components/sections/RoadmapSection';
@@ -577,6 +578,7 @@ const HomePage: React.FC = () => {
                       participants={prediction.participants || 0} // Use actual participants count
                       maxParticipants={prediction.maxParticipants}
                       rewardPoolAmount={prediction.rewardPoolAmount || prediction.stakeAmount || 0}
+                      isAgentCreated={prediction.isAgentCreated || false}
                       yesPercentage={prediction.type === 'binary' && prediction.choices && prediction.choices.length > 0 ?
                         prediction.choices.find(c => c.id === 'yes')?.percentage : undefined
                       }
@@ -628,6 +630,9 @@ const HomePage: React.FC = () => {
 
       {/* Affiliate Program Section */}
       <AffiliateSection />
+
+      {/* LP Vault Section - Prominent placement before Roadmap */}
+      <LPVaultSection />
 
       {/* Roadmap Section */}
       <RoadmapSection />

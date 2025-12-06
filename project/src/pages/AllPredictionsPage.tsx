@@ -290,6 +290,7 @@ const AllPredictionsPage: React.FC = () => {
                       poolSize={prediction.volume || 0}
                       poolToken={prediction.tokenType as 'SOL' | 'SOLY'}
                       participants={prediction.participants || 0}
+                      isAgentCreated={prediction.isAgentCreated || false}
                       minSolyRequired={prediction.minSolyRequired}
                       maxParticipants={prediction.maxParticipants}
                       yesPercentage={prediction.type === 'binary' && prediction.choices ?

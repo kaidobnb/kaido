@@ -35,6 +35,8 @@ import LinktreePage from './pages/LinktreePage';
 import StandaloneLinktreePage from './pages/StandaloneLinktreePage';
 import PresalePage from './pages/PresalePage';
 import PresaleConfirmationPage from './pages/PresaleConfirmationPage';
+import StakingPage from './pages/StakingPage';
+import LPVaultPage from './pages/LPVaultPage';
 import InviteOnlyPage from './components/access/InviteOnlyPage';
 import AccessControl from './components/access/AccessControl';
 import { checkAndStoreReferralCode } from './utils/referralUtils';
@@ -133,6 +135,8 @@ function App() {
                               <Route path="/prediction-legacy/:id" element={<PredictionPage />} />
                               <Route path="/leaderboard" element={<LeaderboardPage />} />
                               <Route path="/portfolio" element={<PortfolioPage />} />
+                              <Route path="/staking" element={<StakingPage />} />
+                              <Route path="/lp-vault" element={<LPVaultPage />} />
                               <Route path="/profile" element={<ProfilePage />} />
                               <Route path="/badges" element={<BadgesPage />} />
                               <Route path="/profile/winnings" element={<WinningsPage />} />

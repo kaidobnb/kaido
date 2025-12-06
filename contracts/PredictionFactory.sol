@@ -16,6 +16,11 @@ interface ILossEdgeVault {
     function calculateCompensation(uint256 predictionId, uint256 userLoss) external view returns (uint256);
 }
 
+interface ILPVault {
+    function returnLiquidity(uint256 predictionId) external;
+    function getDeployment(uint256 predictionId) external view returns (uint256, bool, uint256, uint256);
+}
+
 /**
  * @title PredictionFactory
  * @dev Core contract for creating and managing predictions on KAIDO platform
@@ -58,12 +63,14 @@ contract PredictionFactory {
         uint256 timestamp;
         bool exited;
         bool claimed;
+        bool isLPPosition; // NEW: Flag for LP attention liquidity (excluded from payouts)
     }
     
     // State variables
     address public owner;
     address public oracleAddress;
     address public feeDistributor;
+    address public lpVault; // NEW: LP Vault address
     
     uint256 public predictionCount;
     uint256 public constant ENTRY_FEE_PERCENTAGE = 5; // 5% entry fee
@@ -71,6 +78,10 @@ contract PredictionFactory {
     
     mapping(uint256 => Prediction) public predictions;
     uint256[] public activePredictionIds;
+
+    // LP tracking
+    mapping(uint256 => uint256) public lpLiquidityAmount; // predictionId => total LP amount
+    mapping(uint256 => mapping(string => uint256)) public lpChoiceVolumes; // predictionId => choice => LP volume
     
     // Events
     event PredictionCreated(
@@ -207,7 +218,8 @@ contract PredictionFactory {
             amount: stakeAmount,
             timestamp: block.timestamp,
             exited: false,
-            claimed: false
+            claimed: false,
+            isLPPosition: false // Creator is a real user
         });
         
         pred.participants.push(msg.sender);
@@ -271,7 +283,8 @@ contract PredictionFactory {
             amount: stakeAmount,
             timestamp: block.timestamp,
             exited: false,
-            claimed: false
+            claimed: false,
+            isLPPosition: false // Regular user participation
         });
         
         pred.participants.push(msg.sender);
@@ -312,6 +325,47 @@ contract PredictionFactory {
         require(success, "Refund failed");
         
         emit ParticipationExited(predictionId, msg.sender, refundAmount);
+    }
+
+    /**
+     * @dev Add LP attention liquidity to a prediction (admin only, called via LP Vault)
+     * LP positions are displayed but NOT paid out to winners
+     */
+    function addLPLiquidity(
+        uint256 predictionId,
+        string[] memory choices,
+        uint256[] memory amounts
+    ) external predictionExists(predictionId) beforeLock(predictionId) {
+        require(msg.sender == lpVault || msg.sender == owner, "Only LP Vault or owner");
+        require(choices.length == amounts.length, "Arrays length mismatch");
+        require(choices.length > 0, "Must provide at least one choice");
+
+        Prediction storage pred = predictions[predictionId];
+        uint256 totalLPAmount = 0;
+
+        for (uint i = 0; i < choices.length; i++) {
+            require(amounts[i] > 0, "Amount must be positive");
+
+            // Verify choice exists
+            bool validChoice = false;
+            for (uint j = 0; j < pred.choices.length; j++) {
+                if (keccak256(bytes(pred.choices[j])) == keccak256(bytes(choices[i]))) {
+                    validChoice = true;
+                    break;
+                }
+            }
+            require(validChoice, "Invalid choice");
+
+            // Track LP volume separately (not added to choiceVolumes for payout calculation)
+            lpChoiceVolumes[predictionId][choices[i]] += amounts[i];
+            totalLPAmount += amounts[i];
+        }
+
+        // Track total LP liquidity for this prediction
+        lpLiquidityAmount[predictionId] += totalLPAmount;
+
+        // Add to totalPool for display purposes only
+        pred.totalPool += totalLPAmount;
     }
 
     /**
@@ -366,6 +420,11 @@ contract PredictionFactory {
         // Winners get 100% of the pool (95% after entry fees)
         // Loss-Edge Pool and Treasury already received their shares during participation
 
+        // Return LP liquidity to vault (LP doesn't participate in payouts)
+        if (lpLiquidityAmount[predictionId] > 0 && lpVault != address(0)) {
+            ILPVault(lpVault).returnLiquidity(predictionId);
+        }
+
         // Remove from active predictions
         _removeFromActivePredictions(predictionId);
 
@@ -392,12 +451,14 @@ contract PredictionFactory {
             "Not a winner"
         );
 
-        // Calculate reward - winners get proportional share of total pool
-        uint256 winningVolume = pred.choiceVolumes[pred.resolvedChoice];
+        // Calculate reward - winners get proportional share of REAL USER pool only
+        // LP liquidity is excluded from payout calculation
+        uint256 realWinningVolume = pred.choiceVolumes[pred.resolvedChoice];
+        uint256 realTotalPool = pred.totalPool - lpLiquidityAmount[predictionId];
 
-        require(winningVolume > 0, "No winning volume");
+        require(realWinningVolume > 0, "No winning volume");
 
-        uint256 reward = (participation.amount * pred.totalPool) / winningVolume;
+        uint256 reward = (participation.amount * realTotalPool) / realWinningVolume;
 
         // Mark as claimed
         participation.claimed = true;
@@ -515,6 +576,57 @@ contract PredictionFactory {
     }
 
     /**
+     * @dev Get LP liquidity info for a prediction
+     */
+    function getLPLiquidity(uint256 predictionId)
+        external
+        view
+        predictionExists(predictionId)
+        returns (
+            uint256 totalLPAmount,
+            uint256 realUserPool,
+            uint256 displayPool
+        )
+    {
+        Prediction storage pred = predictions[predictionId];
+        uint256 lpAmount = lpLiquidityAmount[predictionId];
+        return (
+            lpAmount,
+            pred.totalPool - lpAmount, // Real user pool
+            pred.totalPool // Display pool (includes LP)
+        );
+    }
+
+    /**
+     * @dev Get LP volume for a specific choice
+     */
+    function getLPChoiceVolume(uint256 predictionId, string memory choice)
+        external
+        view
+        predictionExists(predictionId)
+        returns (uint256)
+    {
+        return lpChoiceVolumes[predictionId][choice];
+    }
+
+    /**
+     * @dev Get real user volume for a specific choice (excludes LP)
+     */
+    function getRealChoiceVolume(uint256 predictionId, string memory choice)
+        external
+        view
+        predictionExists(predictionId)
+        returns (uint256 realVolume, uint256 displayVolume)
+    {
+        Prediction storage pred = predictions[predictionId];
+        uint256 lpVolume = lpChoiceVolumes[predictionId][choice];
+        return (
+            pred.choiceVolumes[choice], // Real user volume
+            pred.choiceVolumes[choice] + lpVolume // Display volume (includes LP)
+        );
+    }
+
+    /**
      * @dev Get all active prediction IDs
      */
     function getActivePredictions() external view returns (uint256[] memory) {
@@ -586,6 +698,13 @@ contract PredictionFactory {
      */
     function setFeeDistributor(address _feeDistributor) external onlyOwner {
         feeDistributor = _feeDistributor;
+    }
+
+    /**
+     * @dev Update LP Vault address
+     */
+    function setLPVault(address _lpVault) external onlyOwner {
+        lpVault = _lpVault;
     }
 
     /**

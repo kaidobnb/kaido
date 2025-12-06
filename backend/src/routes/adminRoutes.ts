@@ -8,7 +8,7 @@ import Participation from '../models/Participation';
 import AdminSettings from '../models/AdminSettings';
 import Referral from '../models/Referral';
 import mongoose from 'mongoose';
-import { sendTokensFromClaimWallet, hasClaimWalletSufficientBalance } from '../services/walletService';
+import { sendTokensFromClaimWallet, hasClaimWalletSufficientBalance } from '../services/bnbWalletService';
 import { getPartnerRecords, payoutPartnerFees } from '../controllers/partnerController';
 import { startAutoPredictionJob, stopAutoPredictionJob } from '../jobs/autoPredictionJob';
 
@@ -598,7 +598,10 @@ const approveClaimTransaction = async (participationId: string, userId: mongoose
     }
 
     // Check if claim wallet has sufficient balance
-    const hasSufficientBalance = await hasClaimWalletSufficientBalance(reward);
+    const hasSufficientBalance = await hasClaimWalletSufficientBalance(
+      reward,
+      prediction.tokenType as 'BNB' | 'KAIDO'
+    );
     if (!hasSufficientBalance) {
       throw new Error(`Claim wallet has insufficient balance to pay out ${reward} ${prediction.tokenType}`);
     }
@@ -652,7 +655,7 @@ const approveClaimTransaction = async (participationId: string, userId: mongoose
       const txSignature = await sendTokensFromClaimWallet(
         user.walletAddress,
         reward,
-        prediction.tokenType as 'SOL' | 'SOLY'
+        prediction.tokenType as 'BNB' | 'KAIDO'
       );
 
       // Update transaction with signature

@@ -7,7 +7,7 @@ import Transaction from '../models/Transaction';
 import { IUser } from '../models/User';
 import Referral, { IReferral } from '../models/Referral';
 import { getCurrentPrice } from '../services/cryptoService';
-import { sendTokensFromClaimWallet, hasClaimWalletSufficientBalance } from '../services/walletService';
+import { sendTokensFromClaimWallet, hasClaimWalletSufficientBalance } from '../services/bnbWalletService';
 import AdminSettings from '../models/AdminSettings';
 
 // Admin wallet address for collecting fees and handling payouts
@@ -27,6 +27,7 @@ export const createPrediction = async (req: Request, res: Response) => {
       title,
       description,
       type,
+      category,
       tokenType,
       endDate,
       asset,
@@ -41,6 +42,61 @@ export const createPrediction = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
 
+    // Validate description length
+    if (description.length < 10) {
+      return res.status(400).json({ message: 'Description must be at least 10 characters long' });
+    }
+
+    // Validate resolveDetails
+    if (!resolveDetails || resolveDetails.length < 20) {
+      return res.status(400).json({
+        message: 'Resolution details are required and must be at least 20 characters long. Please explain how this prediction will be resolved.'
+      });
+    }
+
+    // Validate end date is in the future
+    const endDateTime = new Date(endDate);
+    if (endDateTime <= new Date()) {
+      return res.status(400).json({ message: 'End date must be in the future' });
+    }
+
+    // Category-specific validation
+    const predictionCategory = category || 'crypto';
+
+    // Sports predictions CANNOT be binary (must account for draws)
+    if (predictionCategory === 'sports' && type === 'binary') {
+      return res.status(400).json({
+        message: 'Sports predictions cannot be binary (YES/NO). Please use multiple-choice to account for draws. Options should be: Home Win, Draw, Away Win.'
+      });
+    }
+
+    // For crypto binary predictions, require targetPrice
+    if (predictionCategory === 'crypto' && type === 'binary') {
+      if (!targetPrice || targetPrice <= 0) {
+        return res.status(400).json({
+          message: 'Target price is required for crypto binary predictions and must be greater than 0'
+        });
+      }
+
+      // Validate title includes price or clear question
+      const hasPrice = /\$[\d,]+/.test(title);
+      const hasQuestion = /will|reach|above|below|higher|lower/i.test(title);
+      if (!hasPrice && !hasQuestion) {
+        return res.status(400).json({
+          message: 'Crypto binary prediction title must include a target price (e.g., "$100,000") or a clear question (e.g., "Will BTC reach...")'
+        });
+      }
+    }
+
+    // For multiple choice crypto predictions, require priceRanges
+    if (predictionCategory === 'crypto' && type === 'multiple') {
+      if (!priceRanges || !Array.isArray(priceRanges) || priceRanges.length < 2) {
+        return res.status(400).json({
+          message: 'Price ranges are required for crypto multiple-choice predictions (minimum 2 ranges)'
+        });
+      }
+    }
+
     // Create prediction data with required fields
     const actualStakeAmount = stakeAmount || 0.001;
 
@@ -48,9 +104,10 @@ export const createPrediction = async (req: Request, res: Response) => {
       title,
       description,
       type,
+      category: predictionCategory,
       tokenType,
       creator: user._id,
-      endDate,
+      endDate: endDateTime,
       asset,
       status: 'active',
       // Set default values for required fields if not provided
@@ -59,7 +116,7 @@ export const createPrediction = async (req: Request, res: Response) => {
       volume: type === 'agent' ? 0 : actualStakeAmount,
       // Initialize participants count to 1 for non-agent predictions (the creator)
       participants: type === 'agent' ? 0 : 1,
-      resolveDetails: resolveDetails || `This prediction will be resolved based on ${asset} price data on ${new Date(endDate).toLocaleDateString()}.`
+      resolveDetails
     };
 
     // Add optional fields if provided
@@ -68,8 +125,8 @@ export const createPrediction = async (req: Request, res: Response) => {
     } else if (type === 'binary') {
       // Default binary choices
       predictionData.choices = [
-        { id: 'yes', label: 'Yes', price: 0.5, percentage: 50 },
-        { id: 'no', label: 'No', price: 0.5, percentage: 50 }
+        { id: 'yes', label: 'YES', price: 0.5, percentage: 50 },
+        { id: 'no', label: 'NO', price: 0.5, percentage: 50 }
       ];
     } else if ((type === 'multiple' || type === 'multi-choice') && priceRanges && Array.isArray(priceRanges)) {
       // For multiple-choice predictions, format choices based on price ranges
@@ -97,8 +154,18 @@ export const createPrediction = async (req: Request, res: Response) => {
       success: true,
       prediction
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating prediction:', error);
+
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((err: any) => err.message);
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: messages
+      });
+    }
+
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -745,13 +812,6 @@ export const claimCreatorFees = async (req: Request, res: Response) => {
           totalFees,
           tokenType as 'BNB' | 'KAIDO'
         );
-      } else if (tokenType === 'SOL' || tokenType === 'SOLY') {
-        const { sendTokensFromClaimWallet } = await import('../services/walletService');
-        txHash = await sendTokensFromClaimWallet(
-          user.walletAddress,
-          totalFees,
-          tokenType as 'SOL' | 'SOLY'
-        );
       } else {
         throw new Error(`Unsupported token type: ${tokenType}`);
       }
@@ -845,13 +905,6 @@ export const claimWinnings = async (req: Request, res: Response) => {
           user.walletAddress,
           reward,
           prediction.tokenType as 'BNB' | 'KAIDO'
-        );
-      } else if (prediction.tokenType === 'SOL' || prediction.tokenType === 'SOLY') {
-        const { sendTokensFromClaimWallet } = await import('../services/walletService');
-        txHash = await sendTokensFromClaimWallet(
-          user.walletAddress,
-          reward,
-          prediction.tokenType as 'SOL' | 'SOLY'
         );
       } else {
         throw new Error(`Unsupported token type: ${prediction.tokenType}`);

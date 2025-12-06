@@ -4,7 +4,7 @@ import PartnerRecord from '../models/PartnerRecord';
 import AdminSettings from '../models/AdminSettings';
 import Transaction from '../models/Transaction';
 import User from '../models/User';
-import { sendPartnerFee } from '../services/walletService';
+import { sendPartnerFee } from '../services/bnbWalletService';
 
 /**
  * @desc    Get all partner records

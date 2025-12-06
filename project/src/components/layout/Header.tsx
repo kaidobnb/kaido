@@ -117,6 +117,12 @@ const Header: React.FC = () => {
               >
                 Portfolio
               </NavigationLink>
+              <NavigationLink
+                to="/staking"
+                className="nav-button text-slate-200 hover:text-yellow-300 transition-all text-xl handwritten rounded-md px-5 py-2"
+              >
+                LP Vault
+              </NavigationLink>
               {isAdmin && (
                 <NavigationLink
                   to="/admin"
@@ -333,6 +339,13 @@ const Header: React.FC = () => {
                 onClick={handleMobileMenuClose}
               >
                 <div className="mobile-link-content" style={{ pointerEvents: 'none' }}>Portfolio</div>
+              </NavigationLink>
+              <NavigationLink
+                to="/staking"
+                className="nav-button text-slate-200 hover:text-yellow-300 transition-all text-lg handwritten rounded-md px-5 py-3 block mobile-nav-link"
+                onClick={handleMobileMenuClose}
+              >
+                <div className="mobile-link-content" style={{ pointerEvents: 'none' }}>💎 LP Vault</div>
               </NavigationLink>
               <NavigationLink
                 to="/referrals"

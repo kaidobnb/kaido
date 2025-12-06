@@ -774,6 +774,15 @@ const PredictionDetail: React.FC<PredictionDetailProps> = ({ prediction = {} }) 
                 </div>
               </div>
               <div className="flex space-x-2">
+                {/* Agent/User Badge */}
+                {prediction.isAgentCreated && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                  >
+                    🤖 AI Created
+                  </Badge>
+                )}
                 <Badge variant={
                   prediction.type === 'binary'
                     ? 'primary'

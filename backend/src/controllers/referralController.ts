@@ -6,7 +6,7 @@ import Transaction, { ITransaction } from '../models/Transaction';
 import Participation from '../models/Participation';
 import { IUser } from '../models/User';
 import crypto from 'crypto';
-import { hasClaimWalletSufficientBalance, sendTokensFromClaimWallet } from '../services/walletService';
+import { hasClaimWalletSufficientBalance, sendTokensFromClaimWallet } from '../services/bnbWalletService';
 
 // @desc    Generate referral code
 // @route   POST /api/referrals/generate
@@ -1326,7 +1326,10 @@ export const adminApproveReferralClaim = async (req: Request, res: Response) => 
       console.log(`Processing blockchain transaction for user ${user._id} with wallet ${user.walletAddress}`);
 
       // Check if claim wallet has sufficient balance
-      const hasSufficientBalance = await hasClaimWalletSufficientBalance(claimTransaction.amount);
+      const hasSufficientBalance = await hasClaimWalletSufficientBalance(
+        claimTransaction.amount,
+        claimTransaction.tokenType as 'BNB' | 'KAIDO'
+      );
       if (!hasSufficientBalance) {
         console.error(`Claim wallet has insufficient balance to pay out ${claimTransaction.amount} ${claimTransaction.tokenType}`);
         return res.status(400).json({
@@ -1344,7 +1347,7 @@ export const adminApproveReferralClaim = async (req: Request, res: Response) => 
         txHash = await sendTokensFromClaimWallet(
           user.walletAddress,
           claimTransaction.amount,
-          claimTransaction.tokenType as 'SOL' | 'SOLY'
+          claimTransaction.tokenType as 'BNB' | 'KAIDO'
         );
         console.log(`Blockchain transaction successful. Transaction hash: ${txHash}`);
       } catch (error) {

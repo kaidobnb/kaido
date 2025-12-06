@@ -1,0 +1,19 @@
+{
+  "network": "bscTestnet",
+  "chainId": 97,
+  "timestamp": "2025-12-05T20:33:26.320Z",
+  "deployer": "0xd1AFD60f7B8F4b68C377381E65d8d43Fae0dF7CD",
+  "contracts": {
+    "LPVault": "0xeBAf70c3A59DC45BB2E72dd623EBB0C6837e1d43",
+    "PredictionFactory": "0xa6a8418fb7553af50B5974B750Bc7b99474cBb99",
+    "FeeDistributor": "0x0CDe93bB9C9c1dc28f6b9a2d8898Ff64e567dD25"
+  },
+  "config": {
+    "admin": "0xd1AFD60f7B8F4b68C377381E65d8d43Fae0dF7CD",
+    "boostVaultPercentage": 70,
+    "creatorVaultPercentage": 30,
+    "maxDeploymentPerPrediction": 20,
+    "minStakeAmount": "0.01",
+    "lpYieldPercentage": 30
+  }
+}

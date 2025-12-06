@@ -6,7 +6,7 @@ import Participation from '../models/Participation';
 import Transaction from '../models/Transaction';
 import { IUser } from '../models/User';
 import { getCurrentPrice } from '../services/cryptoService';
-import { sendPartnerFee } from '../services/walletService';
+import { sendPartnerFee } from '../services/bnbWalletService';
 import AdminSettings from '../models/AdminSettings';
 import Referral from '../models/Referral';
 import { updatePartnerRecord } from './partnerController';

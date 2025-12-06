@@ -1,0 +1,24 @@
+{
+  "network": "bscTestnet",
+  "chainId": 97,
+  "deployer": "0xd1AFD60f7B8F4b68C377381E65d8d43Fae0dF7CD",
+  "timestamp": "2025-12-05T20:38:23.641Z",
+  "contracts": {
+    "PredictionFactory": {
+      "address": "0x7b58731EF525F799b70D9Bfa47481D7245F34D28",
+      "oracleAddress": "0xd1AFD60f7B8F4b68C377381E65d8d43Fae0dF7CD"
+    },
+    "FeeDistributor": {
+      "address": "0xD39f58c3b1c8866086Ae28cDDd664B56ebc65859",
+      "lossEdgePool": "0x4F41aC2019F5ee26BCFc93FbB4C4f56278611c4e",
+      "treasury": "0x59548ab18064F229522aDab6A540e8b4b35543c8"
+    },
+    "LossEdgeVault": {
+      "address": "0x4F41aC2019F5ee26BCFc93FbB4C4f56278611c4e"
+    },
+    "LPVault": {
+      "address": "0xB239AE245a26A6dfe2eD933e99bf0A64f1694C11",
+      "admin": "0xd1AFD60f7B8F4b68C377381E65d8d43Fae0dF7CD"
+    }
+  }
+}

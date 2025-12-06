@@ -14,11 +14,14 @@ import adminSportsRoutes from './routes/adminSportsRoutes';
 import sportsRoutes from './routes/sportsRoutes';
 import subAdminRoutes from './routes/subAdminRoutes';
 import badgeRoutes from './routes/badgeRoutes';
-import presaleRoutes from './routes/presaleRoutes';
+// import presaleRoutes from './routes/presaleRoutes'; // Disabled - requires BNB implementation
 import testRoutes from './routes/testRoutes';
+import lpVaultRoutes from './routes/lpVaultRoutes';
 import { startPredictionResolutionJob } from './jobs/predictionResolutionJob';
 import { startHybridPredictionResolutionJob } from './jobs/hybridPredictionResolutionJob';
 import { startAutoPredictionJob } from './jobs/autoPredictionJob';
+import { initializeKaidoAgent } from './jobs/kaidoAgentJob';
+import agentRoutes from './routes/agentRoutes';
 import AdminSettings from './models/AdminSettings';
 import { protect } from './middleware/authMiddleware';
 import { checkAccess } from './middleware/inviteOnlyMiddleware';
@@ -97,8 +100,10 @@ app.use('/api/sports', sportsRoutes); // Public sports routes
 app.use('/api/admin', protect, adminRoutes);
 app.use('/api/sub-admin', protect, subAdminRoutes);
 app.use('/api/badges', protect, badgeRoutes);
-app.use('/api/presale', presaleRoutes); // Presale routes handle their own protection
+// app.use('/api/presale', presaleRoutes); // Disabled - requires BNB implementation
 app.use('/api/test', testRoutes); // Test routes for admin functions
+app.use('/api/agent', agentRoutes); // KAIDO Agent routes (admin only)
+app.use('/api/lp-vault', lpVaultRoutes); // LP Vault routes (public read access)
 
 // Health check route
 app.get('/', (_req: Request, res: Response) => {
@@ -117,7 +122,8 @@ app.get('/', (_req: Request, res: Response) => {
       '/api/admin/sports',
       '/api/sub-admin',
       '/api/badges',
-      '/api/presale'
+      '/api/presale',
+      '/api/agent'
     ]
   });
 });
@@ -157,5 +163,13 @@ app.listen(PORT, async () => {
     }
   } catch (error) {
     console.error('Error checking auto-prediction settings:', error);
+  }
+
+  // Initialize KAIDO AI Agent
+  console.log('\n🤖 Initializing KAIDO AI Agent...');
+  try {
+    await initializeKaidoAgent();
+  } catch (error) {
+    console.error('Error initializing KAIDO Agent:', error);
   }
 });

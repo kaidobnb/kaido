@@ -15,9 +15,10 @@ import AdminApiSettings from '../components/admin/AdminApiSettings';
 import AdminPartnerSettings from '../components/admin/AdminPartnerSettings';
 import PartnerRecordsPage from '../components/admin/PartnerRecordsPage';
 import AdminAutoPredictionSettings from '../components/admin/AdminAutoPredictionSettings';
+import AdminKaidoAgentSettings from '../components/admin/AdminKaidoAgentSettings';
 import Button from '../components/ui/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
-import { AlertCircle, Plus, Bot, Award, DollarSign, Settings, Wallet, Users, Trophy } from 'lucide-react';
+import { AlertCircle, Plus, Bot, Award, DollarSign, Settings, Wallet, Users, Trophy, Cpu } from 'lucide-react';
 
 interface AdminStats {
   userCount: number;
@@ -164,6 +165,10 @@ const AdminDashboardPage: React.FC = () => {
                 <Users className="h-4 w-4 mr-1" />
                 Partner Records
               </TabsTrigger>
+              <TabsTrigger value="kaido-agent">
+                <Cpu className="h-4 w-4 mr-1" />
+                KAIDO Agent
+              </TabsTrigger>
               <TabsTrigger value="auto-predictions">
                 <Bot className="h-4 w-4 mr-1" />
                 Auto-Predictions
@@ -307,6 +312,10 @@ const AdminDashboardPage: React.FC = () => {
 
             <TabsContent value="partners">
               <PartnerRecordsPage />
+            </TabsContent>
+
+            <TabsContent value="kaido-agent">
+              <AdminKaidoAgentSettings />
             </TabsContent>
 
             <TabsContent value="auto-predictions">

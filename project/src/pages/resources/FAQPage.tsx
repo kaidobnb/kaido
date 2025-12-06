@@ -13,11 +13,11 @@ const FAQPage: React.FC = () => {
   const faqs = [
     {
       question: 'What is KAIDO?',
-      answer: 'KAIDO is the first Loss-Edge AI-Agent prediction market built on BNB Chain for crypto and sports predictions. It combines the power of prediction markets with AI assistance to create a seamless platform where users can create, trade, and earn from predictions. The unique Loss-Edge mechanism ensures that even if you lose a prediction, you get rewarded with BNB airdrops from the loss-edge fund pool, making it a win-win platform for all participants.'
+      answer: 'KAIDO is the first Loss-Edge AI-Agent prediction market built on BNB Chain for crypto and sports predictions. It combines the power of prediction markets with AI assistance to create a seamless platform where users can create, trade, and earn from predictions. The unique Loss-Edge mechanism ensures that even if you lose a prediction, you can claim compensation from the loss-edge fund pool, making it a win-win platform for all participants.'
     },
     {
       question: 'What makes KAIDO different from other prediction platforms?',
-      answer: 'KAIDO is unique because of its Loss-Edge mechanism. Unlike traditional prediction markets where losers get nothing, KAIDO redistributes 2% of every prediction pool to users who lost their predictions as daily BNB airdrops. Additionally, KAIDO uses AI to automatically create, manage, and resolve prediction markets, making the entire process transparent, fair, and on-chain. This creates a more inclusive and rewarding ecosystem for all users.'
+      answer: 'KAIDO is unique because of its Loss-Edge mechanism. Unlike traditional prediction markets where losers get nothing, KAIDO redistributes 2% of every prediction pool to users who lost their predictions. Losers can claim their proportional share from the Loss Edge Pool after the prediction resolves. Additionally, KAIDO uses AI to automatically create, manage, and resolve prediction markets, making the entire process transparent, fair, and on-chain. This creates a more inclusive and rewarding ecosystem for all users.'
     },
     {
       question: 'How do I create a prediction market?',
@@ -29,15 +29,15 @@ const FAQPage: React.FC = () => {
     },
     {
       question: 'How does the 5% Agent Fee Distribution work?',
-      answer: 'Every prediction pool on KAIDO charges a 5% agent fee in BNB, automatically distributed by the KAIDO AI Agent: 95% goes to winners, 2% to the Loss Edge Pool (daily BNB airdrops for losers), 1% to the prediction creator, 1% to affiliate referrers, and 1% to the KAIDO Treasury for platform operations. This transparent distribution ensures all participants benefit from the ecosystem.'
+      answer: 'Every prediction pool on KAIDO charges a 5% agent fee in BNB, automatically distributed by the KAIDO AI Agent: 95% goes to winners, 2% to the Loss Edge Pool (claimable compensation for losers), 1% to the prediction creator, 1% to affiliate referrers, and 1% to the KAIDO Treasury for platform operations. This transparent distribution ensures all participants benefit from the ecosystem.'
     },
     {
       question: 'What is the Loss-Edge Pool?',
-      answer: 'The Loss-Edge Pool is a unique KAIDO feature where 2% of every prediction pool is reserved to reward users who lost their predictions. This pool is distributed daily as BNB airdrops to all losers, proportional to their stake. This means even if your prediction is wrong, you still get rewarded, making KAIDO a truly inclusive platform where everyone benefits.'
+      answer: 'The Loss-Edge Pool is a unique KAIDO feature where 2% of every prediction pool is reserved to reward users who lost their predictions. Losers can claim their proportional share from the Loss Edge Pool after the prediction resolves by clicking the "Claim Loss-Edge Compensation" button. This means even if your prediction is wrong, you still get rewarded, making KAIDO a truly inclusive platform where everyone benefits.'
     },
     {
       question: 'How do I participate in predictions?',
-      answer: 'To participate in predictions: (1) Connect your BNB Chain wallet, (2) Browse available prediction markets or create your own, (3) Stake BNB to participate, (4) Buy and sell positions as market conditions change to maximize profits, (5) When the prediction resolves, winners receive 95% of the pool, and losers receive daily BNB airdrops from the Loss Edge Pool.'
+      answer: 'To participate in predictions: (1) Connect your BNB Chain wallet, (2) Browse available prediction markets or create your own, (3) Stake BNB to participate, (4) Buy and sell positions as market conditions change to maximize profits, (5) When the prediction resolves, winners receive 95% of the pool, and losers can claim their proportional share from the Loss Edge Pool.'
     },
     {
       question: 'How are predictions resolved?',
@@ -69,7 +69,15 @@ const FAQPage: React.FC = () => {
     },
     {
       question: 'What happens if I lose a prediction?',
-      answer: 'Unlike traditional prediction markets, losing on KAIDO is not a total loss. You receive daily BNB airdrops from the Loss Edge Pool (2% of every prediction pool). The amount you receive is proportional to your stake. This unique mechanism ensures that all participants benefit from the ecosystem, making KAIDO a truly inclusive platform.'
+      answer: 'Unlike traditional prediction markets, losing on KAIDO is not a total loss. You can claim compensation from the Loss Edge Pool (2% of every prediction pool). The amount you receive is proportional to your stake. Simply click the "Claim Loss-Edge Compensation" button on resolved predictions where you lost. This unique mechanism ensures that all participants benefit from the ecosystem, making KAIDO a truly inclusive platform.'
+    },
+    {
+      question: 'What is the KAIDO LP Vault?',
+      answer: 'The KAIDO LP Vault is the first truly consumer-friendly LP model in prediction markets. Users stake BNB once into a unified vault, and KAIDO handles internal allocation to three yield engines: (1) Boost Vault - earns 30% of the 1% boost fee from boosted markets, (2) Engagement Support - earns from increased platform activity during engagement boosts, and (3) Creator Backing Pool - earns 0.60% of all creator-driven volume (30% of Affiliate Fee + 30% of KAIDO Fee). LPs earn real yield from real platform activity with no impermanent loss, no slippage, and no prediction outcome risk.'
+    },
+    {
+      question: 'How do I earn yield as an LP?',
+      answer: 'Simply stake BNB into the KAIDO LP Vault. KAIDO automatically allocates your stake across Boost, Engagement, and Creator engines. You earn yield from: boosted prediction markets (30% of 1% boost fee), engagement-driven platform fees, and creator-backed events (0.60% of creator volume). All yield is distributed proportionally among stakers. There\'s no need to pick between different pools - stake once, earn from everything!'
     }
   ];
 

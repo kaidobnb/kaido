@@ -25,6 +25,7 @@ interface PredictionCardProps {
   onClick?: () => void;
   glowColor?: string; // Add support for custom glow colors
   className?: string; // Add support for custom classes
+  isAgentCreated?: boolean; // Whether this prediction was created by KAIDO agent
 }
 
 const PredictionCard: React.FC<PredictionCardProps> = ({
@@ -44,6 +45,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
   onClick,
   glowColor,
   className = '',
+  isAgentCreated = false,
 }) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -133,12 +135,23 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
 
         <CardHeader className={`pb-2 relative z-10 ${className.includes('homepage-card') ? 'pt-3 md:pt-5' : ''}`}>
           <div className="flex justify-between items-start mb-1.5 md:mb-2">
-            <span
-              className={`font-medium px-1.5 md:px-2 py-0.5 md:py-1 rounded-full bg-yellow-500/20 text-yellow-400 ${className.includes('homepage-card') ? 'text-xs md:text-sm' : 'text-xs'}`}
-              style={{ minWidth: '35px', textAlign: 'center' }}
-            >
-              {asset}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`font-medium px-1.5 md:px-2 py-0.5 md:py-1 rounded-full bg-yellow-500/20 text-yellow-400 ${className.includes('homepage-card') ? 'text-xs md:text-sm' : 'text-xs'}`}
+                style={{ minWidth: '35px', textAlign: 'center' }}
+              >
+                {asset}
+              </span>
+              {/* Agent/User Badge */}
+              {isAgentCreated && (
+                <span
+                  className={`font-medium px-1.5 md:px-2 py-0.5 md:py-1 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 ${className.includes('homepage-card') ? 'text-xs md:text-sm' : 'text-xs'}`}
+                  title="Created by KAIDO Agent"
+                >
+                  🤖 AI
+                </span>
+              )}
+            </div>
             <span
               className={`font-medium px-1.5 md:px-2 py-0.5 md:py-1 rounded-full ${
                 type === 'agent'

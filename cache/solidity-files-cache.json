@@ -75,8 +75,8 @@
       ]
     },
     "/Users/charlpagne/Documents/solymarket/contracts/FeeDistributor.sol": {
-      "lastModificationDate": 1763029337572,
-      "contentHash": "f2f26f3343c48ded0c8df180878e73fb",
+      "lastModificationDate": 1764965982358,
+      "contentHash": "6a17e9d999639ed2f9afef7850e5226e",
       "sourceName": "contracts/FeeDistributor.sol",
       "solcConfig": {
         "version": "0.8.19",
@@ -147,8 +147,8 @@
       ]
     },
     "/Users/charlpagne/Documents/solymarket/contracts/PredictionFactory.sol": {
-      "lastModificationDate": 1763029726906,
-      "contentHash": "6b5c2b017e1a3b94f1ba7cc4b8b454a6",
+      "lastModificationDate": 1764962986115,
+      "contentHash": "797203653d76ad448b2e0df77a70b367",
       "sourceName": "contracts/PredictionFactory.sol",
       "solcConfig": {
         "version": "0.8.19",
@@ -180,8 +180,47 @@
       ],
       "artifacts": [
         "IFeeDistributor",
+        "ILPVault",
         "ILossEdgeVault",
         "PredictionFactory"
+      ]
+    },
+    "/Users/charlpagne/Documents/solymarket/contracts/LPVault.sol": {
+      "lastModificationDate": 1764966081122,
+      "contentHash": "180a1a8591352f25932f84b143543936",
+      "sourceName": "contracts/LPVault.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "IFeeDistributor",
+        "IPredictionFactory",
+        "LPVault"
       ]
     }
   }

@@ -44,7 +44,7 @@ export interface IPrediction extends Document {
   status: 'active' | 'resolved' | 'cancelled';
   resolvedChoice?: string;
   resolvedAt?: Date;
-  resolvedBy?: 'api' | 'admin'; // Who resolved the prediction
+  resolvedBy?: 'api' | 'admin' | 'agent'; // Who resolved the prediction
   asset: string;
   targetPrice?: number;
   priceRanges?: string[];
@@ -60,6 +60,9 @@ export interface IPrediction extends Document {
   maxParticipants?: number;
   rewardPoolAmount?: number; // Added for agent predictions
   sportsData?: SportsData; // Sports-specific data
+  // KAIDO Agent metadata
+  isAgentCreated?: boolean;
+  finalPrice?: number;
 }
 
 const PredictionSchema: Schema = new Schema(
@@ -68,16 +71,74 @@ const PredictionSchema: Schema = new Schema(
       type: String,
       required: true,
       trim: true,
+      validate: {
+        validator: function(v: string) {
+          const doc = this as any;
+
+          // For crypto binary predictions, ensure title includes target price or clear question
+          if (doc.category === 'crypto' && doc.type === 'binary') {
+            // Title should either contain a price (e.g., "$100,000") or be a clear question
+            const hasPrice = /\$[\d,]+/.test(v);
+            const hasQuestion = /will|reach|above|below|higher|lower/i.test(v);
+            return hasPrice || hasQuestion;
+          }
+
+          // For sports predictions, ensure title includes team names or is specific
+          if (doc.category === 'sports') {
+            // Reject generic titles
+            const genericTitles = [
+              'match outcome prediction',
+              'match prediction',
+              'game prediction',
+              'sports prediction'
+            ];
+            const lowerTitle = v.toLowerCase();
+            const isGeneric = genericTitles.some(generic => lowerTitle === generic);
+
+            if (isGeneric) {
+              return false;
+            }
+
+            // Title should include "vs" or team names from sportsData
+            const hasVs = /\svs\s/i.test(v);
+            return hasVs || v.length > 20; // Allow longer descriptive titles
+          }
+
+          return true;
+        },
+        message: function(props: any) {
+          const doc = props.instance as any;
+          if (doc.category === 'crypto') {
+            return 'Crypto binary predictions must have a clear target price or question in the title';
+          }
+          if (doc.category === 'sports') {
+            return 'Sports predictions must have specific titles with team names (e.g., "Team A vs Team B - Match Outcome"), not generic titles like "Match outcome prediction"';
+          }
+          return 'Invalid title';
+        }
+      }
     },
     description: {
       type: String,
       required: true,
       trim: true,
+      minlength: [10, 'Description must be at least 10 characters long']
     },
     type: {
       type: String,
       enum: ['binary', 'multiple', 'agent'],
       required: true,
+      validate: {
+        validator: function(v: string) {
+          const doc = this as any;
+          // Sports predictions cannot be binary (must account for draws)
+          if (doc.category === 'sports' && v === 'binary') {
+            return false;
+          }
+          return true;
+        },
+        message: 'Sports predictions cannot be binary type. Use multiple-choice to account for draws (Home Win, Draw, Away Win).'
+      }
     },
     category: {
       type: String,
@@ -98,6 +159,12 @@ const PredictionSchema: Schema = new Schema(
     endDate: {
       type: Date,
       required: true,
+      validate: {
+        validator: function(v: Date) {
+          return v > new Date();
+        },
+        message: 'End date must be in the future'
+      }
     },
     duration: {
       type: Number, // Duration in minutes
@@ -121,6 +188,7 @@ const PredictionSchema: Schema = new Schema(
     resolveDetails: {
       type: String,
       required: true,
+      minlength: [20, 'Resolution details must be at least 20 characters long']
     },
     status: {
       type: String,
@@ -135,7 +203,7 @@ const PredictionSchema: Schema = new Schema(
     },
     resolvedBy: {
       type: String,
-      enum: ['api', 'admin'],
+      enum: ['api', 'admin', 'agent'],
     },
     asset: {
       type: String,
@@ -143,6 +211,17 @@ const PredictionSchema: Schema = new Schema(
     },
     targetPrice: {
       type: Number,
+      validate: {
+        validator: function(v: number | undefined) {
+          const doc = this as any;
+          // For crypto binary predictions, targetPrice is required
+          if (doc.category === 'crypto' && doc.type === 'binary') {
+            return v !== undefined && v > 0;
+          }
+          return true;
+        },
+        message: 'Target price is required for crypto binary predictions and must be greater than 0'
+      }
     },
     priceRanges: [String],
     stakeAmount: {
@@ -214,6 +293,20 @@ const PredictionSchema: Schema = new Schema(
         type: String,
         default: 'full_time_result',
       },
+      finalHomeScore: {
+        type: Number,
+      },
+      finalAwayScore: {
+        type: Number,
+      },
+    },
+    // KAIDO Agent metadata
+    isAgentCreated: {
+      type: Boolean,
+      default: false,
+    },
+    finalPrice: {
+      type: Number,
     },
   },
   {

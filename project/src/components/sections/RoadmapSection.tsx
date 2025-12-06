@@ -33,8 +33,8 @@ const RoadmapSection: React.FC = () => {
     },
     {
       icon: <Users className="h-8 w-8 text-blue-400" />,
-      title: "Partner with LPs for Shared Revenue",
-      description: "Establish partnerships with Liquidity Providers (LPs) featuring shared revenue distribution model and Loss-Edge Pool staking mechanisms",
+      title: "Scaling and Expansion",
+      description: "Scale platform infrastructure, expand to new markets and regions, grow user base, and establish strategic partnerships to become the leading consumer prediction market platform",
       phase: "Phase 4",
       bgColor: "bg-blue-500/20",
       glowColor: "#3b82f6",

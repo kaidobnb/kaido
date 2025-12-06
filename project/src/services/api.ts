@@ -1731,3 +1731,42 @@ export const getSubAdminWallets = async () => {
 export const getSubAdminStats = async () => {
   return apiRequest('/sub-admin/stats', 'GET', undefined, true);
 };
+
+// ============================================
+// KAIDO Agent API Functions
+// ============================================
+
+// Get KAIDO Agent status
+export const getAgentStatus = async () => {
+  return apiRequest('/agent/status', 'GET', undefined, true);
+};
+
+// Get KAIDO Agent configuration
+export const getAgentConfig = async () => {
+  return apiRequest('/agent/config', 'GET', undefined, true);
+};
+
+// Update KAIDO Agent configuration
+export const updateAgentConfig = async (config: any) => {
+  return apiRequest('/agent/config', 'PUT', config, true);
+};
+
+// Enable/Disable KAIDO Agent
+export const toggleAgent = async (enabled: boolean) => {
+  return apiRequest('/agent/toggle', 'POST', { enabled }, true);
+};
+
+// Pause/Resume KAIDO Agent
+export const pauseAgent = async (paused: boolean) => {
+  return apiRequest('/agent/pause', 'POST', { paused }, true);
+};
+
+// Manually trigger prediction creation
+export const triggerAgentCreation = async (category?: 'crypto' | 'sports') => {
+  return apiRequest('/agent/create', 'POST', { category }, true);
+};
+
+// Manually trigger resolution cycle
+export const triggerAgentResolution = async () => {
+  return apiRequest('/agent/resolve', 'POST', {}, true);
+};

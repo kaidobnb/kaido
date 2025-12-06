@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Home, TrendingUp, Trophy, User, BarChart3 } from 'lucide-react';
+import { Home, TrendingUp, Trophy, BarChart3, Gem } from 'lucide-react';
 import NavigationLink from './NavigationLink';
 
 interface NavItem {
@@ -37,6 +37,12 @@ const MobileBottomNav: React.FC = () => {
       icon: BarChart3,
       label: 'Portfolio',
       matchPaths: ['/portfolio']
+    },
+    {
+      path: '/staking',
+      icon: Gem,
+      label: 'LP Vault',
+      matchPaths: ['/staking']
     }
   ];
 
